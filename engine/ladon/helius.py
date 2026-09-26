@@ -24,6 +24,9 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 def parse_transfers(transactions: list[dict[str, Any]]) -> list[Transfer]:
     transfers: list[Transfer] = []
     for tx in transactions:
+        # A failed transaction still lists the transfers it attempted, but none of them happened.
+        if tx.get("transactionError"):
+            continue
         signature = tx.get("signature", "")
         timestamp = int(tx.get("timestamp") or 0)
         for native in tx.get("nativeTransfers") or []:

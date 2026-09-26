@@ -36,6 +36,22 @@ def test_forwarding_to_an_exchange_is_not_sweeping():
     assert detect_sweeps(SWEEPER, sweeps(delay=4, destination=EXCHANGE), excluded=frozenset({EXCHANGE})) is None
 
 
+def test_dust_moving_through_quickly_is_not_sweeping():
+    transfers = []
+    for i in range(5):
+        at = 1_700_000_000 + i * 60
+        transfers.append(sol(wallet(f"rent-{i}"), SWEEPER, amount=0.0015, at=at))
+        transfers.append(sol(SWEEPER, COLLECTOR, amount=0.0015, at=at + 1))
+    assert detect_sweeps(SWEEPER, transfers) is None
+
+
+def test_failed_transactions_move_no_money():
+    a, b = wallet("a"), wallet("b")
+    failed = helius_tx(a, b, lamports=3_000_000_000, at=1, sig="failed")
+    failed["transactionError"] = {"InstructionError": [0, "Custom"]}
+    assert parse_transfers([failed]) == []
+
+
 def test_parses_helius_transactions_into_transfers():
     a, b = wallet("a"), wallet("b")
     tx = helius_tx(a, b, lamports=1_500_000_000, at=1_700_000_000, sig="sig1")
