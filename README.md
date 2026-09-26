@@ -19,7 +19,8 @@ Every score is a probability with its reasons, not an accusation.
 |---|---|
 | `web/` | The website (Next.js, TypeScript, Tailwind) |
 | `engine/` | The scam graph engine and public API (Python, FastAPI) |
-| `extension/` | The Chrome extension — planned |
+| `extension/` | The Chrome extension: check a wallet or token, and report a scam, from the toolbar |
+| `shared/` | Address validation and API client shared by the extension and the site |
 
 ## Running the website
 
@@ -28,6 +29,18 @@ cd web
 npm install
 npm run dev
 ```
+
+## Running the extension
+
+```bash
+cd extension
+npm install
+cp .env.example .env   # set the API URL, and a PostHog key if you want analytics
+npm run build
+npm test
+```
+
+Then open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and choose `extension/dist`. Pin Ladon from the puzzle-piece menu and click its icon to open it. The engine must be running at the API URL. After changing the code, run `npm run build` again and press the reload arrow on the Ladon card.
 
 ## Running the engine
 

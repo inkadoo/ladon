@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Ladon</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="top">
+      <img src="wordmark.svg" alt="Ladon" class="wordmark" width="142" height="28" />
+      <p class="tagline">Check before you pay</p>
+    </header>
+
+    <div class="tabs" role="tablist" aria-label="Ladon">
+      <button type="button" role="tab" id="tab-check" aria-controls="panel-check" aria-selected="true">Check</button>
+      <button type="button" role="tab" id="tab-report" aria-controls="panel-report" aria-selected="false" tabindex="-1">Report</button>
+    </div>
+
+    <main>
+      <section id="panel-check" role="tabpanel" aria-labelledby="tab-check">
+        <form id="check-form" novalidate>
+          <label for="check-address">Wallet or token address</label>
+          <div class="row">
+            <input id="check-address" name="address" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="check-hint" placeholder="Paste an address" />
+            <button type="submit" class="primary" id="check-button">Check</button>
+          </div>
+          <p id="check-hint" class="hint">Paste the address you are about to pay, or a token's mint address.</p>
+        </form>
+        <div id="check-result" aria-live="polite"></div>
+      </section>
+
+      <section id="panel-report" role="tabpanel" aria-labelledby="tab-report" hidden>
+        <form id="report-form" novalidate>
+          <label for="report-address">Address that scammed you</label>
+          <input id="report-address" name="address" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="report-address-hint" placeholder="Paste the scammer's address" />
+          <p id="report-address-hint" class="hint">The wallet or token that took your money.</p>
+
+          <label for="report-signature">Transaction signature <span class="optional">(optional)</span></label>
+          <input id="report-signature" name="signature" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="report-signature-hint" placeholder="Paste the transaction signature" />
+          <p id="report-signature-hint" class="hint">The transaction where you lost funds. It lets Ladon find the scammer straight from the chain.</p>
+
+          <label for="report-description">What happened? <span class="optional">(optional)</span></label>
+          <textarea id="report-description" name="description" rows="3" maxlength="1000" placeholder="A few words about how it happened"></textarea>
+
+          <button type="submit" class="primary wide" id="report-button">Send report</button>
+          <p class="hint">A report starts a check of the wallet's history. It never flags a wallet on its own.</p>
+        </form>
+        <div id="report-result" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <footer>Scores are probabilities, not accusations. Ladon never asks for your seed phrase or keys.</footer>
+    <script src="popup.js"></script>
+  </body>
+</html>
