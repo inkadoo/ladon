@@ -7,6 +7,7 @@ REPORT_CAP = 0.15
 FLAG_THRESHOLD = 0.5
 CONFIRM_THRESHOLD = 0.8
 KNOWN_DRAINER_RISK = 0.95
+CONCLUSIVE = 0.9
 
 
 def combine(weights: Iterable[float]) -> float:
@@ -49,7 +50,7 @@ def score_wallet(
     signals = len(onchain)
     if signals == 0:
         confidence = Confidence.LOW if reports else Confidence.NONE
-    elif known_drainer or (signals >= 2 and risk >= CONFIRM_THRESHOLD):
+    elif known_drainer or any(w >= CONCLUSIVE for w in onchain) or (signals >= 2 and risk >= CONFIRM_THRESHOLD):
         confidence = Confidence.HIGH
     else:
         confidence = Confidence.MEDIUM

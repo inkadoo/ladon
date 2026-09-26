@@ -58,3 +58,9 @@ def test_combine_raises_risk_but_stays_below_one():
     assert combine([0.5, 0.5]) == 0.75
     assert combine([0.99, 0.99, 0.99]) < 1
     assert combine([2, -1]) == 1
+
+
+def test_one_conclusive_piece_of_evidence_gives_high_confidence():
+    takeovers = Evidence("took_token_accounts", 0.95, "Was handed ownership of token accounts by 3 different wallets.")
+    assert score_wallet(A, evidence=[takeovers]).confidence is Confidence.HIGH
+    assert score_wallet(A, evidence=[SWEEPS]).confidence is Confidence.MEDIUM
