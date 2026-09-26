@@ -111,7 +111,7 @@ export const WARNING_MARK = "M3 2h1v2H3zM3 5h1v1H3z";
 
 export const DESCRIPTIONS = [
   "A night sky of unknown wallets. A victim's report travels to one star, which is marked with a question mark, because a report alone is not trusted.",
-  "Ladon scans the reported star's history and finds it paid a known drainer. The star locks in terracotta and its risk score counts up to 94%.",
+  "Ladon scans the reported star's history and finds it received money from a known drainer. The star locks in terracotta and its risk score counts up to 94%.",
   "Lines run from the confirmed star along the serpent to its neighbours. Risk is 71% one step away, 38% two steps away and fades further out. A line to an exchange, drawn as a temple, is stopped and the exchange stays neutral.",
   "The whole ring is traced as the serpent Draco and its golden eye opens. Your wallet starts a payment to one of the linked stars, and it is stopped by a warning before you sign.",
 ];
@@ -266,7 +266,7 @@ export function WatchGraph({ stage }: { stage: number }) {
       <Star at={r} size="lg" fill="var(--color-marble)" show={reported} delay={600} className={`animate-[ladon-blink_1.2s_steps(1)_1.3s_infinite] ${MOTION}`} />
       <Chip at={{ x: r.x, y: r.y - 21 }} show={reported} delay={1150} tone="var(--color-marble)" width={18}>?</Chip>
 
-      {/* II: Ladon scans the wallet's history, finds it paid a known drainer, and the sight locks. */}
+      {/* II: Ladon scans the wallet's history, finds money it received from a known drainer, and the sight locks. */}
       {evidence && (
         <g className="motion-reduce:hidden">
           {[0, 350].map((delay) => (
@@ -285,13 +285,13 @@ export function WatchGraph({ stage }: { stage: number }) {
           ))}
         </g>
       )}
-      <Trace from={r} to={DRAINER} show={evidence} delay={250} stroke="var(--color-terracotta)" width={2} duration={550} />
-      <g className={MOTION} style={fade(evidence, 750)}>
+      <Trace from={DRAINER} to={r} show={evidence} delay={500} stroke="var(--color-terracotta)" width={2} duration={500} />
+      <g className={MOTION} style={fade(evidence, 200)}>
         <circle cx={DRAINER.x} cy={DRAINER.y} r={11} fill="var(--color-terracotta)" opacity={0.2} />
         <path d={`M${DRAINER.x} ${DRAINER.y - 6}l6 6l-6 6l-6 -6z`} fill="var(--color-terracotta)" />
         <path d={`M${DRAINER.x - 1} ${DRAINER.y - 1}h2v2h-2z`} fill="var(--color-ink)" />
       </g>
-      <Chip at={{ x: DRAINER.x, y: DRAINER.y - 19 }} show={evidence} delay={850} tone="var(--color-terracotta)" width={72}>known drainer</Chip>
+      <Chip at={{ x: DRAINER.x, y: DRAINER.y - 19 }} show={evidence} delay={300} tone="var(--color-terracotta)" width={72}>known drainer</Chip>
       <Star at={r} size="lg" fill="var(--color-terracotta)" show={confirmed} delay={evidence ? 1000 : 0} glow />
       <rect x={r.x - 1} y={r.y - 1} width={2} height={2} fill="var(--color-gold)" className={MOTION} style={fade(confirmed, evidence ? 1050 : 0)} />
       <Chip at={{ x: r.x + 4, y: r.y - 21 }} show={confirmed} delay={evidence ? 1000 : 0} tone="var(--color-gold)">{`${score}%`}</Chip>

@@ -12,7 +12,7 @@ const STEPS = [
   {
     numeral: "II",
     title: "The chain has to agree.",
-    body: "Ladon looks for evidence in the wallet's own history: payments to known drainer contracts, money swept out seconds after it lands, liquidity pulled from a token. Only evidence raises the score.",
+    body: "Ladon looks for evidence in the wallet's own history: money received from known drainers, money swept out seconds after it lands, liquidity pulled from a token. Only evidence raises the score.",
   },
   {
     numeral: "III",
