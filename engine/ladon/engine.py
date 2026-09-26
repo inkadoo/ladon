@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 from .evidence import detect
 from .graph import ScamGraph
-from .helius import Helius, parse_transfers
+from .helius import Helius, parse_takeovers, parse_transfers
 from .models import Confidence, Reason, Score
 from .scoring import CONFIRM_THRESHOLD, KNOWN_DRAINER_RISK, score_wallet
 from .store import MemoryStore
@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from .db import Database
 
 EXPAND_LIMIT = 10
+ATTACKER_LIMIT = 3
 MAX_ROUNDS = 5
 
 
@@ -48,16 +49,21 @@ class Engine:
             )
         return self.store.score(address) or unknown(address)
 
-    async def report(self, address: str, reporter: str, description: str) -> bool:
-        report = self.store.add_report(address, reporter, description)
+    async def report(self, address: str, reporter: str, description: str, signature: str = "") -> bool:
+        report = self.store.add_report(address, reporter, description, signature)
         if report and self.db:
             await self.db.save_report(report)
         await self._rescore_and_save()
         return report is not None
 
-    async def check(self, address: str) -> None:
+    async def check(self, address: str, signature: str = "") -> None:
         if self.helius is None or address in self.excluded:
             return
+        if signature:
+            takeovers = await self._record(await self.helius.transaction(signature))
+            for attacker in list(dict.fromkeys(t.attacker for t in takeovers))[:ATTACKER_LIMIT]:
+                if attacker not in self.store.checked and attacker not in self.excluded:
+                    await self._ingest(attacker)
         await self._ingest(address)
         await self._rescore_and_save()
         if self._confirmed().get(address):
@@ -69,20 +75,34 @@ class Engine:
 
     async def _ingest(self, address: str) -> None:
         assert self.helius is not None
-        transfers = parse_transfers(await self.helius.transactions(address))
-        evidence = detect(address, [*self.store.transfers_of(address), *transfers], self.excluded)
-        self.store.add_transfers(transfers)
-        self.store.set_evidence(address, evidence)
+        await self._record(await self.helius.transactions(address))
         self.store.mark_checked(address)
         if self.db:
-            await self.db.save_transfers(transfers)
-            await self.db.save_evidence(address, evidence)
             await self.db.mark_checked(address)
+
+    async def _record(self, transactions: list[dict]) -> list:
+        transfers = parse_transfers(transactions)
+        takeovers = parse_takeovers(transactions)
+        self.store.add_transfers(transfers)
+        self.store.add_takeovers(takeovers)
+        if self.db:
+            await self.db.save_transfers(transfers)
+            await self.db.save_takeovers(takeovers)
+        return takeovers
 
     async def _rescore_and_save(self) -> None:
         self.rescore()
         if self.db:
-            await self.db.save_scores(self.store.scores)
+            await self.db.save_derived(self.store.scores, self.store.evidence)
+
+    def _gather_evidence(self) -> None:
+        candidates = (self.store.checked | self.store.attackers() | self.store.reported_addresses()) - self.excluded
+        evidence = {}
+        for address in candidates:
+            found = detect(address, self.store.transfers_of(address), self.excluded, self.store.takeovers_by(address))
+            if found:
+                evidence[address] = found
+        self.store.evidence = evidence
 
     def _graph(self) -> ScamGraph:
         graph = ScamGraph(self.excluded)
@@ -96,6 +116,7 @@ class Engine:
         return address in self.known_drainers or bool(self.store.evidence.get(address))
 
     def rescore(self) -> None:
+        self._gather_evidence()
         graph = self._graph()
         seeds = {a: KNOWN_DRAINER_RISK for a in self.known_drainers}
         scores: dict[str, Score] = {}

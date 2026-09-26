@@ -3,7 +3,7 @@ from pathlib import Path
 
 import asyncpg
 
-from .models import Asset, Evidence, Score, Transfer
+from .models import Asset, Evidence, Score, Takeover, Transfer
 from .store import MemoryStore, Report
 
 MIGRATIONS = Path(__file__).resolve().parent.parent / "migrations"
@@ -28,19 +28,19 @@ class Database:
 
     async def load_into(self, store: MemoryStore) -> None:
         async with self.pool.acquire() as conn:
-            for row in await conn.fetch("select address, reporter, description, extract(epoch from created_at) as created from reports"):
-                store.reports.append(Report(row["address"], row["reporter"], row["description"], float(row["created"])))
-            for row in await conn.fetch("select signature, source, destination, asset, amount, ts from transfers"):
-                store.transfers.add(Transfer(row["source"], row["destination"], row["amount"], Asset(row["asset"]), row["ts"], row["signature"]))
-            for row in await conn.fetch("select address, items from evidence"):
-                store.evidence[row["address"]] = [Evidence(**item) for item in json.loads(row["items"])]
+            for row in await conn.fetch("select address, reporter, description, extract(epoch from created_at) as created, tx_signature from reports"):
+                store.reports.append(Report(row["address"], row["reporter"], row["description"], float(row["created"]), row["tx_signature"] or ""))
+            rows = await conn.fetch("select signature, source, destination, asset, amount, ts from transfers")
+            store.add_transfers([Transfer(r["source"], r["destination"], r["amount"], Asset(r["asset"]), r["ts"], r["signature"]) for r in rows])
+            rows = await conn.fetch("select victim, attacker, token_account, ts, signature from takeovers")
+            store.add_takeovers([Takeover(r["victim"], r["attacker"], r["token_account"], r["ts"], r["signature"]) for r in rows])
             for row in await conn.fetch("select address from checked_wallets"):
                 store.checked.add(row["address"])
 
     async def save_report(self, report: Report) -> None:
         await self.pool.execute(
-            "insert into reports (address, reporter, description, created_at) values ($1, $2, $3, to_timestamp($4)) on conflict do nothing",
-            report.address, report.reporter, report.description, report.created_at,
+            "insert into reports (address, reporter, description, created_at, tx_signature) values ($1, $2, $3, to_timestamp($4), nullif($5, '')) on conflict do nothing",
+            report.address, report.reporter, report.description, report.created_at, report.signature,
         )
 
     async def save_transfers(self, transfers: list[Transfer]) -> None:
@@ -51,11 +51,12 @@ class Database:
             [(t.signature, t.source, t.destination, t.asset.value, t.amount, t.timestamp) for t in transfers],
         )
 
-    async def save_evidence(self, address: str, evidence: list[Evidence]) -> None:
-        items = json.dumps([{"code": e.code, "weight": e.weight, "text": e.text} for e in evidence])
-        await self.pool.execute(
-            "insert into evidence (address, items) values ($1, $2::jsonb) on conflict (address) do update set items = excluded.items, updated_at = now()",
-            address, items,
+    async def save_takeovers(self, takeovers: list[Takeover]) -> None:
+        if not takeovers:
+            return
+        await self.pool.executemany(
+            "insert into takeovers (signature, victim, attacker, token_account, ts) values ($1, $2, $3, $4, $5) on conflict do nothing",
+            [(t.signature, t.victim, t.attacker, t.token_account, t.timestamp) for t in takeovers],
         )
 
     async def mark_checked(self, address: str) -> None:
@@ -64,8 +65,14 @@ class Database:
             address,
         )
 
-    async def save_scores(self, scores: dict[str, Score]) -> None:
+    async def save_derived(self, scores: dict[str, Score], evidence: dict[str, list[Evidence]]) -> None:
         async with self.pool.acquire() as conn, conn.transaction():
+            await conn.execute("delete from evidence")
+            if evidence:
+                await conn.executemany(
+                    "insert into evidence (address, items) values ($1, $2::jsonb)",
+                    [(a, json.dumps([{"code": e.code, "weight": e.weight, "text": e.text} for e in items])) for a, items in evidence.items()],
+                )
             await conn.execute("delete from scores")
             if scores:
                 await conn.executemany(

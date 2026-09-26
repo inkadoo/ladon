@@ -8,6 +8,10 @@ def wallet(name: str) -> str:
     return b58encode(hashlib.sha256(name.encode()).digest())
 
 
+def signature(name: str) -> str:
+    return b58encode(hashlib.sha512(name.encode()).digest())
+
+
 def sol(source: str, destination: str, amount: float = 1.0, at: int = 1_700_000_000, sig: str | None = None) -> Transfer:
     return Transfer(source, destination, amount, Asset.SOL, at, sig or f"{source[:6]}-{destination[:6]}-{at}")
 
@@ -36,9 +40,14 @@ def takeover_tx(victim: str, attacker: str, token_account: str, at: int, sig: st
 
 
 class FakeHelius:
-    def __init__(self, histories: dict[str, list[dict]]):
+    def __init__(self, histories: dict[str, list[dict]], transactions: list[dict] = ()):
         self.histories = histories
         self.calls: list[str] = []
+        self.by_signature = {tx["signature"]: tx for txs in histories.values() for tx in txs}
+        self.by_signature.update({tx["signature"]: tx for tx in transactions})
+
+    async def transaction(self, signature: str) -> list[dict]:
+        return [self.by_signature[signature]] if signature in self.by_signature else []
 
     async def transactions(self, address: str, limit: int = 100) -> list[dict]:
         self.calls.append(address)

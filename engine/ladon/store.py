@@ -1,7 +1,9 @@
 import time
 from dataclasses import dataclass, field
 
-from .models import Evidence, Score, Transfer
+from collections import defaultdict
+
+from .models import Evidence, Score, Takeover, Transfer
 
 
 @dataclass(frozen=True)
@@ -10,20 +12,23 @@ class Report:
     reporter: str
     description: str
     created_at: float
+    signature: str = ""
 
 
 @dataclass
 class MemoryStore:
     reports: list[Report] = field(default_factory=list)
     transfers: set[Transfer] = field(default_factory=set)
+    takeovers: set[Takeover] = field(default_factory=set)
+    by_address: dict[str, set[Transfer]] = field(default_factory=lambda: defaultdict(set))
     evidence: dict[str, list[Evidence]] = field(default_factory=dict)
     scores: dict[str, Score] = field(default_factory=dict)
     checked: set[str] = field(default_factory=set)
 
-    def add_report(self, address: str, reporter: str, description: str) -> Report | None:
+    def add_report(self, address: str, reporter: str, description: str, signature: str = "") -> Report | None:
         if any(r.address == address and r.reporter == reporter for r in self.reports):
             return None
-        report = Report(address, reporter, description, time.time())
+        report = Report(address, reporter, description, time.time(), signature)
         self.reports.append(report)
         return report
 
@@ -34,13 +39,22 @@ class MemoryStore:
         return {r.address for r in self.reports}
 
     def add_transfers(self, transfers: list[Transfer]) -> None:
-        self.transfers.update(transfers)
+        for t in transfers:
+            self.transfers.add(t)
+            self.by_address[t.source].add(t)
+            self.by_address[t.destination].add(t)
 
     def transfers_of(self, address: str) -> list[Transfer]:
-        return [t for t in self.transfers if address in (t.source, t.destination)]
+        return list(self.by_address.get(address, ()))
 
-    def set_evidence(self, address: str, evidence: list[Evidence]) -> None:
-        self.evidence[address] = evidence
+    def add_takeovers(self, takeovers: list[Takeover]) -> None:
+        self.takeovers.update(takeovers)
+
+    def takeovers_by(self, attacker: str) -> list[Takeover]:
+        return [t for t in self.takeovers if t.attacker == attacker]
+
+    def attackers(self) -> set[str]:
+        return {t.attacker for t in self.takeovers}
 
     def mark_checked(self, address: str) -> None:
         self.checked.add(address)
