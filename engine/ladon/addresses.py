@@ -38,6 +38,15 @@ def parse_address(value: object) -> str:
     return candidate
 
 
+def parse_signature(value: object) -> str:
+    if not isinstance(value, str):
+        raise InvalidAddress("signature must be a string")
+    candidate = value.strip()
+    if not 64 <= len(candidate) <= 88 or len(b58decode(candidate)) != 64:
+        raise InvalidAddress("not a transaction signature")
+    return candidate
+
+
 def is_valid_address(value: object) -> bool:
     try:
         parse_address(value)

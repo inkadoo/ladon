@@ -4,7 +4,7 @@ from ladon.api import create_app
 from ladon.config import Settings
 from ladon.engine import Engine
 from ladon.store import MemoryStore
-from helpers import FakeHelius, helius_tx, wallet
+from helpers import FakeHelius, helius_tx, signature, takeover_tx, wallet
 
 DRAINER, OPERATOR, MULE, VICTIM, SWEEPER, CASHOUT = (
     wallet(n) for n in ["drainer", "operator", "mule", "victim", "sweeper", "cashout"]
@@ -12,8 +12,8 @@ DRAINER, OPERATOR, MULE, VICTIM, SWEEPER, CASHOUT = (
 SOL = 1_000_000_000
 
 
-def client_for(histories: dict[str, list[dict]], known_drainers=frozenset({DRAINER})) -> TestClient:
-    engine = Engine(MemoryStore(), known_drainers=known_drainers, helius=FakeHelius(histories))
+def client_for(histories: dict[str, list[dict]], known_drainers=frozenset({DRAINER}), transactions=()) -> TestClient:
+    engine = Engine(MemoryStore(), known_drainers=known_drainers, helius=FakeHelius(histories, transactions))
     return TestClient(create_app(Settings(reporter_salt="test"), engine))
 
 
@@ -102,3 +102,48 @@ def test_a_sweeper_funded_by_a_drainer_is_confirmed_and_passes_risk_on():
 
     cashout = client.get(f"/v1/address/{CASHOUT}").json()
     assert cashout["flagged"]
+
+
+ATTACKER = wallet("attacker")
+
+
+def drained(victim: str) -> dict:
+    return takeover_tx(victim, ATTACKER, wallet(f"{victim}-usdc"), 1_700_000_000, signature(f"drain-{victim}"))
+
+
+def report_drain(client: TestClient, victim: str):
+    return client.post("/v1/reports", json={"address": ATTACKER, "signature": signature(f"drain-{victim}")})
+
+
+def test_one_victims_signature_flags_the_attacker_without_confirming_it():
+    client = client_for({}, known_drainers=frozenset(), transactions=[drained(wallet("v1"))])
+    assert report_drain(client, wallet("v1")).status_code == 202
+    body = client.get(f"/v1/address/{ATTACKER}").json()
+    assert body["flagged"]
+    assert body["reasons"][0]["code"] == "took_token_accounts"
+    assert body["risk"] < 0.8
+
+
+def test_three_victims_confirm_a_drainer_and_expose_where_the_money_went():
+    victims = [wallet(f"v{i}") for i in range(3)]
+    cashout = helius_tx(ATTACKER, OPERATOR, 40 * SOL, 1_700_000_500, signature("cashout"))
+    client = client_for({ATTACKER: [cashout]}, known_drainers=frozenset(), transactions=[drained(v) for v in victims])
+    for victim in victims:
+        report_drain(client, victim)
+
+    attacker = client.get(f"/v1/address/{ATTACKER}").json()
+    assert attacker["confidence"] == "high"
+    assert "3 different wallets" in attacker["reasons"][0]["text"]
+
+    operator = client.get(f"/v1/address/{OPERATOR}").json()
+    assert operator["flagged"]
+    assert operator["reasons"][0]["code"] == "linked_to_scam"
+
+    for victim in victims:
+        assert client.get(f"/v1/address/{victim}").json()["risk"] == 0
+
+
+def test_rejects_malformed_signatures():
+    client = client_for({})
+    response = client.post("/v1/reports", json={"address": ATTACKER, "signature": "not-a-signature"})
+    assert response.status_code == 400

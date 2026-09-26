@@ -4,7 +4,7 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from .addresses import InvalidAddress, parse_address
+from .addresses import InvalidAddress, parse_address, parse_signature
 from .config import Settings, load_settings
 from .db import Database
 from .engine import Engine
@@ -18,6 +18,7 @@ from .store import MemoryStore
 class ReportIn(BaseModel):
     address: str
     description: str = Field(default="", max_length=MAX_DESCRIPTION * 2)
+    signature: str = Field(default="", max_length=100)
 
 
 def score_json(score: Score) -> dict:
@@ -74,8 +75,14 @@ def create_app(settings: Settings | None = None, engine: Engine | None = None) -
         key = reporter_key(request.client.host if request.client else "unknown", settings.reporter_salt)
         if not limiter.allow(key):
             raise HTTPException(status_code=429, detail="Too many reports from you just now. Please try again in a few minutes.")
-        await engine.report(address, key, clean_description(body.description))
-        background.add_task(engine.check, address)
+        signature = ""
+        if body.signature.strip():
+            try:
+                signature = parse_signature(body.signature)
+            except InvalidAddress:
+                raise HTTPException(status_code=400, detail="That is not a valid transaction signature.") from None
+        await engine.report(address, key, clean_description(body.description), signature)
+        background.add_task(engine.check, address, signature)
         return {
             "status": "received",
             "message": "Thank you. Your report starts a check of this wallet's onchain history. A report never flags a wallet on its own.",
