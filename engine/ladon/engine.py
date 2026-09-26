@@ -6,9 +6,11 @@ from .helius import Helius, parse_takeovers, parse_transfers
 from .models import Confidence, Reason, Score
 from .scoring import CONFIRM_THRESHOLD, KNOWN_DRAINER_RISK, score_wallet
 from .store import MemoryStore
+from .wallets.patterns import FLOW_CODES
 
 if TYPE_CHECKING:
     from .db import Database
+    from .wallets.checker import WalletChecker
 
 EXPAND_LIMIT = 10
 ATTACKER_LIMIT = 3
@@ -38,6 +40,7 @@ class Engine:
         self.known_drainers = known_drainers
         self.helius = helius
         self.db = db
+        self._inherited: dict = {}
 
     def lookup(self, address: str) -> Score:
         if address in self.excluded:
@@ -48,6 +51,27 @@ class Engine:
                 reasons=(Reason("infrastructure", "A known exchange, protocol or program. It never inherits risk from the wallets that use it."),),
             )
         return self.store.score(address) or unknown(address)
+
+    async def investigate(self, address: str, wallets: "WalletChecker") -> Score:
+        if address in self.excluded:
+            return self.lookup(address)
+        findings = await wallets.check(address)
+        stored = self.store.evidence.get(address, [])
+        if findings.infrastructure:
+            stored = [e for e in stored if e.code not in FLOW_CODES]
+        live = list(findings.evidence)
+        codes = {e.code for e in live}
+        base = self.store.score(address)
+        return score_wallet(
+            address,
+            evidence=[*live, *(e for e in stored if e.code not in codes)],
+            inherited=self._inherited.get(address),
+            reports=self.store.report_count(address),
+            known_drainer=address in self.known_drainers,
+            cluster_size=base.cluster_size if base else 0,
+            notes=findings.notes,
+            checked=findings.checked,
+        )
 
     async def report(self, address: str, reporter: str, description: str, signature: str = "") -> bool:
         report = self.store.add_report(address, reporter, description, signature)
@@ -132,6 +156,7 @@ class Engine:
             if new_seeds.keys() == seeds.keys():
                 break
             seeds = new_seeds
+        self._inherited = inherited
         self.store.set_scores(scores)
 
     def _score_all(self, inherited) -> dict[str, Score]:

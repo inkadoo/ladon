@@ -30,6 +30,8 @@ def score_wallet(
     reports: int = 0,
     known_drainer: bool = False,
     cluster_size: int = 0,
+    notes: Iterable[Reason] = (),
+    checked: bool = False,
 ) -> Score:
     evidence = sorted(evidence, key=lambda e: e.weight, reverse=True)
     onchain = [e.weight for e in evidence]
@@ -46,10 +48,11 @@ def score_wallet(
         people = "person" if reports == 1 else "people"
         reasons.append(Reason("reported", f"Reported by {reports} {people}. Reports alone are never treated as proof."))
 
+    reasons.extend(notes)
     risk = combine([*onchain, report_part]) if onchain else report_part
     signals = len(onchain)
     if signals == 0:
-        confidence = Confidence.LOW if reports else Confidence.NONE
+        confidence = Confidence.LOW if reports or checked else Confidence.NONE
     elif known_drainer or any(w >= CONCLUSIVE for w in onchain) or (signals >= 2 and risk >= CONFIRM_THRESHOLD):
         confidence = Confidence.HIGH
     else:

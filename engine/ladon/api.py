@@ -16,6 +16,7 @@ from .store import MemoryStore
 from .tokens.analysis import TokenChecker
 from .tokens.router import token_router
 from .tokens.sources import DexScreener, HeliusRpc
+from .wallets.checker import WalletChecker
 
 
 class ReportIn(BaseModel):
@@ -36,12 +37,20 @@ def score_json(score: Score) -> dict:
     }
 
 
-def create_app(settings: Settings | None = None, engine: Engine | None = None, tokens: TokenChecker | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    engine: Engine | None = None,
+    tokens: TokenChecker | None = None,
+    wallets: WalletChecker | None = None,
+) -> FastAPI:
     settings = settings or load_settings()
     helius = Helius(settings.helius_api_key) if settings.helius_api_key else None
     engine = engine or Engine(MemoryStore(), excluded=load_exclusions(), helius=helius)
-    if tokens is None and settings.helius_api_key:
-        tokens = TokenChecker(HeliusRpc(settings.helius_api_key), DexScreener(), excluded=load_exclusions())
+    if settings.helius_api_key and (tokens is None or wallets is None):
+        rpc = HeliusRpc(settings.helius_api_key)
+        tokens = tokens or TokenChecker(rpc, DexScreener(), excluded=load_exclusions())
+        wallets = wallets or WalletChecker(rpc, excluded=load_exclusions())
+    lookups = RateLimiter(limit=20, window_seconds=60)
     limiter = RateLimiter()
 
     @asynccontextmanager
@@ -75,8 +84,13 @@ def create_app(settings: Settings | None = None, engine: Engine | None = None, t
         return {"status": "ok"}
 
     @app.get("/v1/address/{address}")
-    def lookup(address: str) -> dict:
-        return score_json(engine.lookup(valid(address)))
+    async def lookup(address: str, request: Request) -> dict:
+        address = valid(address)
+        if wallets is None:
+            return score_json(engine.lookup(address))
+        if not lookups.allow(reporter_key(request.client.host if request.client else "unknown", settings.reporter_salt)):
+            raise HTTPException(status_code=429, detail="Too many checks from you just now. Please wait a minute and try again.")
+        return score_json(await engine.investigate(address, wallets))
 
     @app.post("/v1/reports", status_code=202)
     async def report(body: ReportIn, request: Request, background: BackgroundTasks) -> dict:
