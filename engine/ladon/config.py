@@ -16,8 +16,6 @@ def load_settings() -> Settings:
     return Settings(
         helius_api_key=os.environ.get("HELIUS_API_KEY") or None,
         database_url=os.environ.get("DATABASE_URL") or None,
-        # Without a configured salt, a fresh one per process still pseudonymises reporters;
-        # it only means de-duplication resets on restart.
         reporter_salt=os.environ.get("REPORTER_SALT") or secrets.token_hex(32),
         allowed_origins=tuple(o.strip() for o in origins.split(",") if o.strip()),
     )

@@ -1,5 +1,3 @@
-"""The core loop: a report starts a check, the check gathers evidence, and scores are recomputed."""
-
 from typing import TYPE_CHECKING
 
 from .evidence import detect
@@ -12,11 +10,7 @@ from .store import MemoryStore
 if TYPE_CHECKING:
     from .db import Database
 
-# After a wallet is confirmed, the histories of the wallets it paid most are fetched too, so the
-# graph can reach two and three steps out. Bounded to stay inside the free Helius quota.
 EXPAND_LIMIT = 10
-# Confirmed wallets can confirm the wallets they fund (when those have evidence of their own), so
-# scoring repeats until nothing changes, up to this many rounds.
 MAX_ROUNDS = 5
 
 
@@ -62,7 +56,6 @@ class Engine:
         return report is not None
 
     async def check(self, address: str) -> None:
-        """Fetch a wallet's history, look for evidence, and rescore. Needs a Helius client."""
         if self.helius is None or address in self.excluded:
             return
         await self._ingest(address)

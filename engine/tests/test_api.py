@@ -101,4 +101,4 @@ def test_a_sweeper_funded_by_a_drainer_is_confirmed_and_passes_risk_on():
     assert {"sweeps_incoming", "linked_to_scam"} <= {r["code"] for r in sweeper["reasons"]}
 
     cashout = client.get(f"/v1/address/{CASHOUT}").json()
-    assert cashout["flagged"]  # one step from a confirmed sweeper, not two from the drainer
+    assert cashout["flagged"]

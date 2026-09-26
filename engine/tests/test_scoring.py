@@ -57,4 +57,4 @@ def test_combine_raises_risk_but_stays_below_one():
     assert combine([0.5]) == 0.5
     assert combine([0.5, 0.5]) == 0.75
     assert combine([0.99, 0.99, 0.99]) < 1
-    assert combine([2, -1]) == 1  # out-of-range weights are clamped
+    assert combine([2, -1]) == 1

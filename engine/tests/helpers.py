@@ -5,7 +5,6 @@ from ladon.models import Asset, Transfer
 
 
 def wallet(name: str) -> str:
-    """A deterministic, well-formed Solana address for a named test wallet."""
     return b58encode(hashlib.sha256(name.encode()).digest())
 
 
@@ -14,7 +13,6 @@ def sol(source: str, destination: str, amount: float = 1.0, at: int = 1_700_000_
 
 
 def helius_tx(source: str, destination: str, lamports: int, at: int, sig: str) -> dict:
-    """A minimal transaction in Helius's enhanced transaction shape."""
     return {
         "signature": sig,
         "timestamp": at,

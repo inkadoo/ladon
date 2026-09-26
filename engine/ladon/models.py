@@ -10,8 +10,6 @@ class Asset(str, Enum):
 
 @dataclass(frozen=True)
 class Transfer:
-    """Money moving from one wallet to another, in whole units of the asset (SOL, not lamports)."""
-
     source: str
     destination: str
     amount: float
@@ -22,8 +20,6 @@ class Transfer:
 
 @dataclass(frozen=True)
 class Evidence:
-    """One onchain finding about a wallet. `weight` is how strongly it alone suggests a scam (0-1)."""
-
     code: str
     weight: float
     text: str
@@ -31,8 +27,6 @@ class Evidence:
 
 @dataclass(frozen=True)
 class Inheritance:
-    """Risk a wallet picks up from a confirmed scam wallet that sent it money."""
-
     source: str
     hops: int
     risk: float

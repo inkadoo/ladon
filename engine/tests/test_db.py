@@ -1,8 +1,3 @@
-"""Round trip through a real Postgres database, in a throwaway schema that is dropped afterwards.
-
-Runs only when LADON_TEST_DATABASE_URL is set, so the normal test run needs no database.
-"""
-
 import asyncio
 import os
 import secrets
@@ -34,7 +29,6 @@ async def round_trip() -> None:
         await engine.check(OPERATOR)
         await db.close()
 
-        # A fresh engine loading from the database sees the same world.
         db = await Database.connect(URL, schema=schema)
         restored = Engine(MemoryStore(), known_drainers=frozenset({DRAINER}), db=db)
         await db.load_into(restored.store)

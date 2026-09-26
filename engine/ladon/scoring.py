@@ -1,21 +1,15 @@
-"""Turning evidence, inherited risk and reports into one score with a confidence and reasons."""
-
 from collections.abc import Iterable
 
 from .models import Confidence, Evidence, Inheritance, Reason, Score
 
-# Reports are weak signals: each distinct reporter adds a little, and all reports together can never
-# reach the flag threshold. Only onchain evidence can flag a wallet.
 REPORT_WEIGHT = 0.05
 REPORT_CAP = 0.15
 FLAG_THRESHOLD = 0.5
-# A wallet at or above this risk from its own evidence is treated as confirmed and passes risk on.
 CONFIRM_THRESHOLD = 0.8
 KNOWN_DRAINER_RISK = 0.95
 
 
 def combine(weights: Iterable[float]) -> float:
-    """Independent signals combined so each one raises the risk, but none can push it past 1."""
     remaining = 1.0
     for w in weights:
         remaining *= 1 - max(0.0, min(1.0, w))

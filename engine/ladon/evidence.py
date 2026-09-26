@@ -1,15 +1,8 @@
-"""Onchain evidence about a single wallet, taken from its own transfers.
-
-Only evidence can raise a score. Reports are handled separately in scoring and are never evidence.
-"""
-
 from collections.abc import Iterable
 
 from .graph import MIN_LINK
 from .models import Evidence, Transfer
 
-# A sweeper bot moves each payment out almost as soon as it lands. Real people rarely do this, and
-# never for payments from many different senders.
 SWEEP_WINDOW_SECONDS = 10
 SWEEP_MIN_SHARE = 0.9
 SWEEP_MIN_COUNT = 3
@@ -17,12 +10,10 @@ SWEEP_MIN_SENDERS = 3
 
 
 def detect_sweeps(address: str, transfers: Iterable[Transfer], excluded: frozenset[str] = frozenset()) -> Evidence | None:
-    # Dust and rent-sized amounts move around automatically and say nothing about who controls a wallet.
     incoming = sorted(
         (t for t in transfers if t.destination == address and t.source not in excluded and t.amount >= MIN_LINK[t.asset]),
         key=lambda t: t.timestamp,
     )
-    # Forwarding to an exchange is what exchange deposit addresses do all day, so it is not a sweep.
     outgoing = sorted(
         (t for t in transfers if t.source == address and t.destination not in excluded),
         key=lambda t: t.timestamp,

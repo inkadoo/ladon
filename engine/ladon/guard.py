@@ -1,5 +1,3 @@
-"""Protecting the report endpoint: cleaning free text, pseudonymising reporters and rate limiting."""
-
 import hashlib
 import hmac
 import re
@@ -12,10 +10,6 @@ _WHITESPACE = re.compile(r"\s+")
 
 
 def clean_description(text: object) -> str:
-    """Plain text only: control characters removed, whitespace collapsed, length capped.
-
-    Stored as text and always escaped when shown, never rendered as HTML.
-    """
     if not isinstance(text, str):
         return ""
     visible = "".join(c for c in text if unicodedata.category(c)[0] != "C" or c in "\n\t ")
@@ -23,8 +17,6 @@ def clean_description(text: object) -> str:
 
 
 def reporter_key(client_ip: str, salt: str) -> str:
-    """A keyed hash of the client IP, so reporters can be de-duplicated and rate limited without
-    storing or logging the IP itself."""
     return hmac.new(salt.encode(), client_ip.encode(), hashlib.sha256).hexdigest()
 
 

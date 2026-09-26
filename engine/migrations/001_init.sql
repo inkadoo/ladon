@@ -1,9 +1,6 @@
--- Ladon's scam graph: reports, transfers between wallets, evidence and scores.
-
 create table if not exists reports (
     id bigint generated always as identity primary key,
     address text not null,
-    -- Keyed hash of the reporter's IP, never the IP itself. Used only to de-duplicate and rate limit.
     reporter text not null,
     description text not null default '',
     created_at timestamptz not null default now(),
@@ -34,7 +31,6 @@ create table if not exists checked_wallets (
     checked_at timestamptz not null default now()
 );
 
--- Scores are recomputed from the tables above; they are stored so other tools can read them directly.
 create table if not exists scores (
     address text primary key,
     risk real not null,
@@ -46,8 +42,6 @@ create table if not exists scores (
     updated_at timestamptz not null default now()
 );
 
--- Supabase exposes the public schema through its REST API. Row level security with no policies
--- denies that API entirely; the engine connects as the database owner and is not affected.
 alter table reports enable row level security;
 alter table transfers enable row level security;
 alter table evidence enable row level security;

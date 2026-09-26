@@ -1,5 +1,3 @@
-"""Solana address validation. Every address from a report, a URL or an API call passes through here."""
-
 ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 _INDEX = {c: i for i, c in enumerate(ALPHABET)}
 
@@ -30,10 +28,6 @@ def b58encode(raw: bytes) -> str:
 
 
 def parse_address(value: object) -> str:
-    """Return the address if it is a well-formed Solana public key, otherwise raise InvalidAddress.
-
-    A public key is 32 bytes, which base58-encodes to 32-44 characters.
-    """
     if not isinstance(value, str):
         raise InvalidAddress("address must be a string")
     candidate = value.strip()

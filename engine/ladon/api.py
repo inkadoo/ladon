@@ -1,5 +1,3 @@
-"""Ladon's public API: look up any Solana address, and report one."""
-
 from contextlib import asynccontextmanager
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Request

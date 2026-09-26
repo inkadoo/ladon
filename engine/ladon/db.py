@@ -1,10 +1,3 @@
-"""Postgres persistence.
-
-The engine works on an in-memory copy of the graph, because every rescore walks it end to end. The
-database is loaded into memory on startup and every change is written through to it, so nothing is
-lost on restart and other tools can read the tables directly.
-"""
-
 import json
 from pathlib import Path
 
@@ -22,7 +15,6 @@ class Database:
 
     @classmethod
     async def connect(cls, url: str, schema: str | None = None) -> "Database":
-        # Supabase's poolers do not support prepared statement caching.
         settings = {"search_path": schema} if schema else None
         pool = await asyncpg.create_pool(url, min_size=1, max_size=5, statement_cache_size=0, server_settings=settings)
         return cls(pool)
@@ -74,7 +66,6 @@ class Database:
 
     async def save_scores(self, scores: dict[str, Score]) -> None:
         async with self.pool.acquire() as conn, conn.transaction():
-            # Scores are fully derived, so the table is replaced to match the latest rescore.
             await conn.execute("delete from scores")
             if scores:
                 await conn.executemany(

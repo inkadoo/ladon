@@ -1,9 +1,3 @@
-"""Where reports, transfers, evidence and scores are kept.
-
-MemoryStore is the engine's working copy. When a database is configured it is loaded from Postgres
-on startup and every change is written through (see db.py).
-"""
-
 import time
 from dataclasses import dataclass, field
 
@@ -27,7 +21,6 @@ class MemoryStore:
     checked: set[str] = field(default_factory=set)
 
     def add_report(self, address: str, reporter: str, description: str) -> Report | None:
-        """Store a report. Returns None when this reporter already reported this address."""
         if any(r.address == address and r.reporter == reporter for r in self.reports):
             return None
         report = Report(address, reporter, description, time.time())

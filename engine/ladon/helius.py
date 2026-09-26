@@ -1,5 +1,3 @@
-"""Fetching a wallet's history from Helius and turning it into plain transfers."""
-
 import logging
 from typing import Any
 
@@ -9,22 +7,18 @@ from .models import Asset, Transfer
 
 BASE_URL = "https://api.helius.xyz/v0"
 
-# Only assets with a known value are used to link wallets. Arbitrary tokens are too easy to spray at
-# strangers to fake a connection, and their amounts mean nothing without a price.
 STABLECOINS = {
     "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v": Asset.USDC,
     "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB": Asset.USDT,
 }
 LAMPORTS_PER_SOL = 1_000_000_000
 
-# httpx logs full request URLs at INFO, and the API key travels in the query string.
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 def parse_transfers(transactions: list[dict[str, Any]]) -> list[Transfer]:
     transfers: list[Transfer] = []
     for tx in transactions:
-        # A failed transaction still lists the transfers it attempted, but none of them happened.
         if tx.get("transactionError"):
             continue
         signature = tx.get("signature", "")

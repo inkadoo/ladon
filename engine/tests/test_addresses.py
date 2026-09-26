@@ -29,12 +29,12 @@ def test_trims_surrounding_whitespace():
     [
         "",
         "abc",
-        "0" * 44,  # 0 is not in the base58 alphabet
+        "0" * 44,
         "O" * 44,
         "I" * 44,
         "l" * 44,
-        "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5D" + "x" * 10,  # too long
-        b58encode(bytes(31)),  # 31 bytes is not a public key
+        "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5D" + "x" * 10,
+        b58encode(bytes(31)),
         None,
         12345,
         "<script>alert(1)</script>",
