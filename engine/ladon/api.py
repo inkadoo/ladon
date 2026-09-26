@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from .addresses import InvalidAddress, parse_address
 from .config import Settings, load_settings
+from .db import Database
 from .engine import Engine
 from .exclusions import load_exclusions
 from .guard import MAX_DESCRIPTION, RateLimiter, clean_description, reporter_key
@@ -41,7 +42,14 @@ def create_app(settings: Settings | None = None, engine: Engine | None = None) -
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
+        if settings.database_url and engine.db is None:
+            engine.db = await Database.connect(settings.database_url)
+            await engine.db.migrate()
+            await engine.db.load_into(engine.store)
+            engine.rescore()
         yield
+        if engine.db:
+            await engine.db.close()
         if helius:
             await helius.close()
 
@@ -63,12 +71,12 @@ def create_app(settings: Settings | None = None, engine: Engine | None = None) -
         return score_json(engine.lookup(valid(address)))
 
     @app.post("/v1/reports", status_code=202)
-    def report(body: ReportIn, request: Request, background: BackgroundTasks) -> dict:
+    async def report(body: ReportIn, request: Request, background: BackgroundTasks) -> dict:
         address = valid(body.address)
         key = reporter_key(request.client.host if request.client else "unknown", settings.reporter_salt)
         if not limiter.allow(key):
             raise HTTPException(status_code=429, detail="Too many reports from you just now. Please try again in a few minutes.")
-        engine.report(address, key, clean_description(body.description))
+        await engine.report(address, key, clean_description(body.description))
         background.add_task(engine.check, address)
         return {
             "status": "received",

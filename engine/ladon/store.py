@@ -1,7 +1,7 @@
 """Where reports, transfers, evidence and scores are kept.
 
-MemoryStore keeps everything in the process, for tests and local development. The Postgres store
-follows the same shape once the database is connected.
+MemoryStore is the engine's working copy. When a database is configured it is loaded from Postgres
+on startup and every change is written through (see db.py).
 """
 
 import time
@@ -26,12 +26,13 @@ class MemoryStore:
     scores: dict[str, Score] = field(default_factory=dict)
     checked: set[str] = field(default_factory=set)
 
-    def add_report(self, address: str, reporter: str, description: str) -> bool:
-        """Store a report. Returns False when this reporter already reported this address."""
+    def add_report(self, address: str, reporter: str, description: str) -> Report | None:
+        """Store a report. Returns None when this reporter already reported this address."""
         if any(r.address == address and r.reporter == reporter for r in self.reports):
-            return False
-        self.reports.append(Report(address, reporter, description, time.time()))
-        return True
+            return None
+        report = Report(address, reporter, description, time.time())
+        self.reports.append(report)
+        return report
 
     def report_count(self, address: str) -> int:
         return len({r.reporter for r in self.reports if r.address == address})

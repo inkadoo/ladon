@@ -1,11 +1,16 @@
 """The core loop: a report starts a check, the check gathers evidence, and scores are recomputed."""
 
+from typing import TYPE_CHECKING
+
 from .evidence import detect
 from .graph import ScamGraph
 from .helius import Helius, parse_transfers
 from .models import Confidence, Reason, Score
 from .scoring import CONFIRM_THRESHOLD, KNOWN_DRAINER_RISK, score_wallet
 from .store import MemoryStore
+
+if TYPE_CHECKING:
+    from .db import Database
 
 # After a wallet is confirmed, the histories of the wallets it paid most are fetched too, so the
 # graph can reach two and three steps out. Bounded to stay inside the free Helius quota.
@@ -31,11 +36,13 @@ class Engine:
         excluded: frozenset[str] = frozenset(),
         known_drainers: frozenset[str] = frozenset(),
         helius: Helius | None = None,
+        db: "Database | None" = None,
     ):
         self.store = store
         self.excluded = excluded
         self.known_drainers = known_drainers
         self.helius = helius
+        self.db = db
 
     def lookup(self, address: str) -> Score:
         if address in self.excluded:
@@ -47,30 +54,42 @@ class Engine:
             )
         return self.store.score(address) or unknown(address)
 
-    def report(self, address: str, reporter: str, description: str) -> bool:
-        added = self.store.add_report(address, reporter, description)
-        self.rescore()
-        return added
+    async def report(self, address: str, reporter: str, description: str) -> bool:
+        report = self.store.add_report(address, reporter, description)
+        if report and self.db:
+            await self.db.save_report(report)
+        await self._rescore_and_save()
+        return report is not None
 
     async def check(self, address: str) -> None:
         """Fetch a wallet's history, look for evidence, and rescore. Needs a Helius client."""
         if self.helius is None or address in self.excluded:
             return
         await self._ingest(address)
-        self.rescore()
+        await self._rescore_and_save()
         if self._confirmed().get(address):
             graph = self._graph()
             for wallet in graph.recipients(address)[:EXPAND_LIMIT]:
                 if wallet not in self.store.checked:
                     await self._ingest(wallet)
-            self.rescore()
+            await self._rescore_and_save()
 
     async def _ingest(self, address: str) -> None:
         assert self.helius is not None
-        transactions = await self.helius.transactions(address)
-        self.store.add_transfers(parse_transfers(transactions))
-        self.store.set_evidence(address, detect(address, self.store.transfers_of(address), self.excluded))
+        transfers = parse_transfers(await self.helius.transactions(address))
+        evidence = detect(address, [*self.store.transfers_of(address), *transfers], self.excluded)
+        self.store.add_transfers(transfers)
+        self.store.set_evidence(address, evidence)
         self.store.mark_checked(address)
+        if self.db:
+            await self.db.save_transfers(transfers)
+            await self.db.save_evidence(address, evidence)
+            await self.db.mark_checked(address)
+
+    async def _rescore_and_save(self) -> None:
+        self.rescore()
+        if self.db:
+            await self.db.save_scores(self.store.scores)
 
     def _graph(self) -> ScamGraph:
         graph = ScamGraph(self.excluded)
