@@ -1,0 +1,16 @@
+# Secrets: Helius, Supabase and any other keys live in .env files only
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Local tooling
+.remember/
+.impeccable/
+.DS_Store
