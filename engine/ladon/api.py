@@ -13,6 +13,9 @@ from .guard import MAX_DESCRIPTION, RateLimiter, clean_description, reporter_key
 from .helius import Helius
 from .models import Score
 from .store import MemoryStore
+from .tokens.analysis import TokenChecker
+from .tokens.router import token_router
+from .tokens.sources import DexScreener, HeliusRpc
 
 
 class ReportIn(BaseModel):
@@ -33,10 +36,12 @@ def score_json(score: Score) -> dict:
     }
 
 
-def create_app(settings: Settings | None = None, engine: Engine | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, engine: Engine | None = None, tokens: TokenChecker | None = None) -> FastAPI:
     settings = settings or load_settings()
     helius = Helius(settings.helius_api_key) if settings.helius_api_key else None
     engine = engine or Engine(MemoryStore(), excluded=load_exclusions(), helius=helius)
+    if tokens is None and settings.helius_api_key:
+        tokens = TokenChecker(HeliusRpc(settings.helius_api_key), DexScreener(), excluded=load_exclusions())
     limiter = RateLimiter()
 
     @asynccontextmanager
@@ -51,8 +56,12 @@ def create_app(settings: Settings | None = None, engine: Engine | None = None) -
             await engine.db.close()
         if helius:
             await helius.close()
+        if tokens:
+            await tokens.rpc.close()
+            await tokens.dex.close()
 
     app = FastAPI(title="Ladon", version="0.1.0", lifespan=lifespan)
+    app.include_router(token_router(tokens))
     app.add_middleware(CORSMiddleware, allow_origins=list(settings.allowed_origins), allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
 
     def valid(address: str) -> str:
