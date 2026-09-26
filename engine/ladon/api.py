@@ -61,7 +61,7 @@ def create_app(settings: Settings | None = None, engine: Engine | None = None, t
             await tokens.dex.close()
 
     app = FastAPI(title="Ladon", version="0.1.0", lifespan=lifespan)
-    app.include_router(token_router(tokens))
+    app.include_router(token_router(tokens, settings.reporter_salt))
     app.add_middleware(CORSMiddleware, allow_origins=list(settings.allowed_origins), allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
 
     def valid(address: str) -> str:

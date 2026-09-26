@@ -6,20 +6,21 @@ from typing import Any
 
 from .scoring import TokenSignals, score_token
 from .sources import DexScreener, HeliusRpc, SourceError
+from .trading import creator_sale, launch_bundle
 
 MINT_INSTRUCTIONS = {"initializeMint", "initializeMint2"}
 SYSTEM_PROGRAM = "11111111111111111111111111111111"
 DEPLOYER_HISTORY = 1000
 FUNDER_HISTORY = 1000
 LINKED_HISTORY = 300
+LAUNCH_HISTORY = 200
 LINKED_WALLETS = 8
 BUSY_FUNDER_RECIPIENTS = 100
 BUSY_FUNDER_SPAN_SECONDS = 24 * 3600
 PAST_TOKEN_LIMIT = 60
 LINKED_BUDGET_SECONDS = 4
-RUG_LIQUIDITY_USD = 1_000
+HOLDERS_BUDGET_SECONDS = 4
 ACTIVE_LIQUIDITY_USD = 10_000
-RUG_MIN_AGE_SECONDS = 24 * 3600
 CACHE_SECONDS = 600
 PARTIAL_CACHE_SECONDS = 60
 
@@ -92,15 +93,11 @@ def is_busy(history: list[dict[str, Any]], recipients: list[str], page_size: int
     return len(history) >= page_size and bool(times) and max(times) - min(times) < BUSY_FUNDER_SPAN_SECONDS
 
 
-def classify(pairs: list[dict[str, Any]], created_at: int, now: float) -> str:
-    if not pairs:
-        return "unknown"
-    liquidity = max(float((p.get("liquidity") or {}).get("usd") or 0) for p in pairs)
-    if liquidity >= ACTIVE_LIQUIDITY_USD:
-        return "active"
-    if liquidity < RUG_LIQUIDITY_USD and now - created_at >= RUG_MIN_AGE_SECONDS:
+def classify(pairs: list[dict[str, Any]], dumped: bool) -> str:
+    if dumped:
         return "likely rug"
-    return "unknown"
+    liquidity = max((float((p.get("liquidity") or {}).get("usd") or 0) for p in pairs), default=0)
+    return "active" if liquidity >= ACTIVE_LIQUIDITY_USD else "unknown"
 
 
 def _iso(ts: int | float) -> str:
@@ -129,31 +126,31 @@ class TokenChecker:
         unchecked: list[str] = []
 
         info_task = asyncio.create_task(self.rpc.mint(mint))
-        creation_task = asyncio.create_task(self.rpc.history(mint, oldest_first=True, limit=1))
+        launch_task = asyncio.create_task(self.rpc.history(mint, oldest_first=True, limit=LAUNCH_HISTORY))
+        holders_task = asyncio.create_task(self._holders(mint))
         try:
             info = await info_task
         except SourceError:
             info = {}
             unchecked.append("We could not read this token's settings from Helius.")
         if info is None:
-            creation_task.cancel()
+            launch_task.cancel()
+            holders_task.cancel()
             raise NotAToken(mint)
         try:
-            creation = await creation_task
+            launch = await launch_task
         except SourceError:
-            creation = []
+            launch = []
 
-        deployer = fee_payer(creation[0]) if creation else None
-        created_at = int(creation[0].get("blockTime") or now) if creation else int(now)
+        deployer = fee_payer(launch[0]) if launch else None
+        created_at = int(launch[0].get("blockTime") or now) if launch else int(now)
         if not deployer:
             unchecked.append("We could not find the transaction that created this token.")
 
+        recent: list[dict[str, Any]] | None = None
         deployer_tokens: dict[str, int] | None = None
-        linked_tokens: dict[str, int] | None = None
         funder: str | None = None
-        funder_is_busy = False
         deployer_age_hours: float | None = None
-
         if deployer:
             try:
                 oldest, recent = await asyncio.gather(
@@ -167,41 +164,57 @@ class TokenChecker:
             except SourceError:
                 unchecked.append("We could not load the deployer's history from Helius.")
 
+        linked: dict[str, tuple[int, str]] | None = None
+        histories: dict[str, list[dict[str, Any]]] = {deployer: recent} if deployer and recent is not None else {}
+        funder_is_busy = False
         if funder and funder not in self.excluded:
             try:
-                linked_tokens, funder_is_busy = await asyncio.wait_for(
+                linked, linked_histories, funder_is_busy = await asyncio.wait_for(
                     self._linked_tokens(funder, deployer or "", mint), LINKED_BUDGET_SECONDS
                 )
+                histories.update(linked_histories)
             except (SourceError, TimeoutError):
                 unchecked.append("We ran out of time tracing the wallets linked to this deployer's funder.")
         elif funder:
             funder_is_busy = True
 
-        past = {**{m: (t, "linked wallet") for m, t in (linked_tokens or {}).items()}, **{m: (t, "deployer") for m, t in (deployer_tokens or {}).items()}}
+        past: dict[str, tuple[int, str, str]] = {m: (t, w, "linked wallet") for m, (t, w) in (linked or {}).items()}
+        past.update({m: (t, deployer, "deployer") for m, t in (deployer_tokens or {}).items() if deployer})
         newest = sorted(past.items(), key=lambda kv: kv[1][0], reverse=True)[:PAST_TOKEN_LIMIT]
-        outcomes: dict[str, str] = {}
-        if newest:
-            try:
-                pairs = await self.dex.pairs([m for m, _ in newest])
-                outcomes = {m: classify(pairs.get(m, []), t, now) for m, (t, _) in newest}
-            except SourceError:
-                unchecked.append("We could not reach DexScreener to see how this deployer's past tokens are trading.")
+        dumped = {m: creator_sale(histories.get(w) or [], w, m, t).dumped for m, (t, w, _) in newest}
+        try:
+            pairs = await self.dex.pairs([m for m, _ in newest]) if newest else {}
+        except SourceError:
+            pairs = {}
+            unchecked.append("We could not reach DexScreener to see which of the deployer's past tokens are still trading.")
+        outcomes = {m: classify(pairs.get(m, []), dumped[m]) for m, _ in newest}
 
-        def rugs(by: str) -> int | None:
-            theirs = [m for m, (_, who) in newest if who == by]
-            if not theirs:
-                return 0
-            if not outcomes:
-                return None
-            return sum(1 for m in theirs if outcomes.get(m) == "likely rug")
+        def rugs(by: str) -> int:
+            return sum(1 for m, (_, _, who) in newest if who == by and outcomes[m] == "likely rug")
+
+        sale = creator_sale(recent, deployer, mint, created_at) if deployer and recent is not None else None
+        bundle_bought: float | None = None
+        bundle_held: float | None = None
+        try:
+            holdings, supply = await asyncio.wait_for(holders_task, HOLDERS_BUDGET_SECONDS)
+            if launch and deployer and supply:
+                funded = set(sol_recipients(recent or [], deployer))
+                bundle = launch_bundle(launch, mint, deployer, funded, holdings, supply)
+                bundle_bought, bundle_held = bundle.bought_share, bundle.held_share
+        except (SourceError, TimeoutError):
+            unchecked.append("We could not load this token's largest holders in time.")
 
         signals = TokenSignals(
             deployer_rugs=rugs("deployer") if deployer_tokens is not None else None,
-            linked_rugs=rugs("linked wallet") if linked_tokens is not None else None,
+            linked_rugs=rugs("linked wallet") if linked is not None else None,
             funder_is_busy=funder_is_busy,
             mint_authority=bool(info.get("mintAuthority")) if info else None,
             freeze_authority=bool(info.get("freezeAuthority")) if info else None,
             deployer_age_hours=deployer_age_hours,
+            creator_sold_share=sale.share if sale else None,
+            creator_held_any=bool(sale and sale.peak),
+            bundle_bought_share=bundle_bought,
+            bundle_held_share=bundle_held,
             unchecked=tuple(unchecked),
         )
         risk = score_token(signals)
@@ -213,22 +226,27 @@ class TokenChecker:
             "level": risk.level.value,
             "reasons": [{"label": r.label, "explanation": r.explanation, "points": r.points} for r in risk.reasons],
             "past_tokens": [
-                {"mint": m, "created_at": _iso(t), "outcome": outcomes.get(m, "unknown"), "created_by": who}
-                for m, (t, who) in newest
+                {"mint": m, "created_at": _iso(t), "outcome": outcomes[m], "created_by": who}
+                for m, (t, _, who) in newest
             ],
             "checked_at": _iso(now),
         }
 
-    async def _linked_tokens(self, funder: str, deployer: str, mint: str) -> tuple[dict[str, int] | None, bool]:
+    async def _holders(self, mint: str) -> tuple[dict[str, int], int]:
+        holdings, supply = await asyncio.gather(self.rpc.largest_holders(mint), self.rpc.supply(mint))
+        return holdings, supply
+
+    async def _linked_tokens(self, funder: str, deployer: str, mint: str):
         history = await self.rpc.history(funder, oldest_first=False, limit=FUNDER_HISTORY)
         recipients = [w for w in sol_recipients(history, funder) if w != deployer and w not in self.excluded]
         if is_busy(history, recipients, FUNDER_HISTORY):
-            return None, True
-        tokens = {m: t for m, t in created_mints(history, funder).items() if m != mint}
+            return None, {}, True
+        tokens = {m: (t, funder) for m, t in created_mints(history, funder).items() if m != mint}
         wallets = recipients[:LINKED_WALLETS]
-        histories = await asyncio.gather(*(self.rpc.history(w, oldest_first=False, limit=LINKED_HISTORY) for w in wallets))
-        for wallet, txs in zip(wallets, histories):
+        fetched = await asyncio.gather(*(self.rpc.history(w, oldest_first=False, limit=LINKED_HISTORY) for w in wallets))
+        histories = {funder: history, **dict(zip(wallets, fetched))}
+        for wallet, txs in zip(wallets, fetched):
             for m, t in created_mints(txs, wallet).items():
                 if m != mint:
-                    tokens.setdefault(m, t)
-        return tokens, False
+                    tokens.setdefault(m, (t, wallet))
+        return tokens, histories, False

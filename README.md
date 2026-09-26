@@ -43,6 +43,10 @@ cp .env.example .env   # then fill in your keys
 - `GET /v1/address/{address}` returns a wallet's risk (0 to 1), a confidence level, whether it is flagged, and the reasons.
 - `POST /v1/reports` with `{"address": "...", "description": "..."}` reports a wallet. A report starts a check of its onchain history; it never flags a wallet on its own.
 
+## Research
+
+The launch bundle checks (wallets funded by the creator, or several wallets buying in one transaction) follow the methods described in Hu et al., *MemeTrans: A Dataset for Detecting High-Risk Memecoin Launches on Solana* (arXiv:2602.13480). No data from that dataset is used or distributed here.
+
 ## Open data
 
 The scam graph is available through a public API so any wallet, exchange or trading tool can use it. Ladon never holds keys or funds, and never asks for your seed phrase.
