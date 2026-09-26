@@ -1,0 +1,139 @@
+@import "tailwindcss";
+
+@theme {
+  --color-terracotta: #b8552f;
+  --color-navy: #14213d;
+  --color-dragon: #2f6b3a;
+  --color-dragon-light: #5fa35a;
+  --color-gold: #f2c14e;
+  --color-marble: #ede8dc;
+  --color-ink: #1a1a1a;
+
+  --font-serif: var(--font-alegreya), Georgia, serif;
+  --font-caps: var(--font-alegreya-sc), Georgia, serif;
+  --font-plain: var(--font-atkinson), system-ui, sans-serif;
+
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+:root {
+  color-scheme: dark;
+  --z-sticky: 10;
+  --z-nav: 20;
+}
+
+html {
+  background: var(--color-ink);
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+body {
+  background: var(--color-ink);
+  color: var(--color-marble);
+  font-family: var(--font-serif);
+  font-size: 1.125rem;
+  line-height: 1.6;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-gold);
+  outline-offset: 3px;
+}
+
+.pixel {
+  image-rendering: pixelated;
+  shape-rendering: crispEdges;
+}
+
+/* Greek key border, drawn on a 1px grid so it stays crisp at any whole-number scale */
+.meander {
+  height: 24px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='6' shape-rendering='crispEdges'%3E%3Cpath fill='%23f2c14e' fill-opacity='.55' d='M0 0h5v1H0zM0 1h1v4H0zM4 1h1v3H4zM2 3h2v1H2zM2 2h1v1H2zM0 5h6v1H0z'/%3E%3C/svg%3E");
+  background-size: 24px 24px;
+  background-repeat: repeat-x;
+  image-rendering: pixelated;
+}
+
+/* Pixel night sky: a tile of single-pixel stars, scaled by whole numbers so they stay crisp. */
+.starfield {
+  background-color: var(--color-navy);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' shape-rendering='crispEdges'%3E%3Cg fill='%23ede8dc'%3E%3Crect x='3' y='7' width='1' height='1' opacity='.5'/%3E%3Crect x='21' y='2' width='1' height='1' opacity='.25'/%3E%3Crect x='40' y='11' width='1' height='1' opacity='.4'/%3E%3Crect x='58' y='5' width='1' height='1' opacity='.2'/%3E%3Crect x='12' y='27' width='1' height='1' opacity='.3'/%3E%3Crect x='33' y='31' width='1' height='1' opacity='.55'/%3E%3Crect x='51' y='24' width='1' height='1' opacity='.25'/%3E%3Crect x='7' y='46' width='1' height='1' opacity='.2'/%3E%3Crect x='26' y='52' width='1' height='1' opacity='.4'/%3E%3Crect x='45' y='43' width='1' height='1' opacity='.3'/%3E%3Crect x='61' y='57' width='1' height='1' opacity='.45'/%3E%3Crect x='36' y='61' width='1' height='1' opacity='.2'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 192px 192px;
+  image-rendering: pixelated;
+}
+
+.meander-sm {
+  height: 12px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='6' shape-rendering='crispEdges'%3E%3Cpath fill='%23f2c14e' d='M0 0h5v1H0zM0 1h1v4H0zM4 1h1v3H4zM2 3h2v1H2zM2 2h1v1H2zM0 5h6v1H0z'/%3E%3C/svg%3E");
+  background-size: 12px 12px;
+  background-repeat: repeat-x;
+  image-rendering: pixelated;
+}
+
+/* Stars flicker in whole steps, like an 8-bit sky, rather than fading smoothly. */
+@keyframes ladon-twinkle {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@keyframes ladon-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Constellation panel: a scan ring around a wallet under check, and a payment moving towards a warning. */
+@keyframes ladon-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(3);
+    opacity: 0;
+  }
+}
+
+
+@keyframes ladon-packet {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  60%,
+  85% {
+    transform: translate(var(--dx), var(--dy));
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx), var(--dy));
+    opacity: 0;
+  }
+}
+
+@keyframes ladon-fade {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+}
