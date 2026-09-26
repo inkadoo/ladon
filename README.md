@@ -18,7 +18,7 @@ Every score is a probability with its reasons, not an accusation.
 | Path | What it is |
 |---|---|
 | `web/` | The website (Next.js, TypeScript, Tailwind) |
-| `engine/` | The scam graph engine and public API (Python, FastAPI) — in progress |
+| `engine/` | The scam graph engine and public API (Python, FastAPI) |
 | `extension/` | The Chrome extension — planned |
 
 ## Running the website
@@ -28,6 +28,20 @@ cd web
 npm install
 npm run dev
 ```
+
+## Running the engine
+
+```bash
+cd engine
+python3 -m venv .venv
+.venv/bin/pip install -e ".[dev]"
+cp .env.example .env   # then fill in your keys
+.venv/bin/python -m pytest
+.venv/bin/uvicorn ladon.api:app --env-file .env --reload
+```
+
+- `GET /v1/address/{address}` returns a wallet's risk (0 to 1), a confidence level, whether it is flagged, and the reasons.
+- `POST /v1/reports` with `{"address": "...", "description": "..."}` reports a wallet. A report starts a check of its onchain history; it never flags a wallet on its own.
 
 ## Open data
 
