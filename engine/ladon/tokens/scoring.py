@@ -7,6 +7,16 @@ MINT_AUTHORITY_POINTS = 15
 FREEZE_AUTHORITY_POINTS = 15
 FRESH_DEPLOYER_POINTS = 10
 FRESH_DEPLOYER_HOURS = 24
+CREATOR_DUMP_POINTS = 35
+CREATOR_SELLING_POINTS = 20
+CREATOR_SELLING_SHARE = 0.5
+CREATOR_DUMP_SHARE = 0.8
+BUNDLE_MIN_SHARE = 0.1
+BUNDLE_DUMP_MIN_SHARE = 0.15
+BUNDLE_DUMP_KEPT = 0.25
+BUNDLE_HOLDING_POINTS = (20, 30)
+BUNDLE_HOLDING_SHARES = (0.2, 0.4)
+BUNDLE_DUMP_POINTS = 30
 MEDIUM_FROM = 30
 HIGH_FROM = 60
 
@@ -32,6 +42,10 @@ class TokenSignals:
     mint_authority: bool | None = None
     freeze_authority: bool | None = None
     deployer_age_hours: float | None = None
+    creator_sold_share: float | None = None
+    creator_held_any: bool = True
+    bundle_bought_share: float | None = None
+    bundle_held_share: float | None = None
     unchecked: tuple[str, ...] = ()
 
 
@@ -50,11 +64,11 @@ def _deployer(rugs: int | None) -> Reason:
     if rugs is None:
         return Reason("Deployer history not checked", "We could not look up the other tokens this deployer has made.")
     if rugs == 0:
-        return Reason("No collapsed tokens from this deployer", "None of the deployer's earlier tokens that we found lost their liquidity.")
+        return Reason("No dumped tokens from this deployer", "We found no earlier token that this deployer sold off soon after launching.")
     points = DEPLOYER_RUG_POINTS[min(rugs, len(DEPLOYER_RUG_POINTS) - 1)]
     return Reason(
-        "Deployer's past tokens collapsed",
-        f"The wallet that created this token made {_plural(rugs, 'earlier token')} that lost almost all their liquidity.",
+        "Deployer dumped earlier tokens",
+        f"The wallet that created this token sold off {_plural(rugs, 'earlier token')} of its own within a day of launching them.",
         points,
     )
 
@@ -68,11 +82,11 @@ def _linked(rugs: int | None, funder_is_busy: bool) -> Reason:
     if rugs is None:
         return Reason("Funding link not checked", "We could not trace who funded the deployer or what else they launched.")
     if rugs == 0:
-        return Reason("No collapsed tokens from linked wallets", "We traced who funded the deployer and found no collapsed tokens from that funder or the other wallets it funded.")
+        return Reason("No dumped tokens from linked wallets", "We traced who funded the deployer and found no tokens that the funder or its other wallets sold off after launch.")
     points = LINKED_RUG_POINTS[min(rugs, len(LINKED_RUG_POINTS) - 1)]
     return Reason(
-        "Linked wallets have rugged",
-        f"The wallet that funded this deployer, or other wallets it funded, made {_plural(rugs, 'token')} that lost almost all their liquidity.",
+        "Linked wallets dumped their tokens",
+        f"The wallet that funded this deployer, or other wallets it funded, launched and then sold off {_plural(rugs, 'token')} within a day.",
         points,
     )
 
@@ -105,12 +119,72 @@ def _deployer_age(hours: float | None) -> Reason:
     return Reason("Established deployer wallet", "The deployer's wallet was in use for more than a day before it created this token.")
 
 
+def _pct(share: float) -> str:
+    return f"{round(share * 100)}%"
+
+
+def _creator_sold(share: float | None, held_any: bool) -> Reason:
+    if share is None:
+        return Reason("Creator's selling not checked", "We could not see whether the creator has sold this token.")
+    if not held_any:
+        return Reason("Creator bought none at launch", "The creator did not hold any of this token after launching it.")
+    if share >= CREATOR_DUMP_SHARE:
+        return Reason(
+            "Creator dumped this token",
+            f"The creator sold {_pct(share)} of their tokens within a day of launching, the classic sign of a rug pull.",
+            CREATOR_DUMP_POINTS,
+        )
+    if share >= CREATOR_SELLING_SHARE:
+        return Reason(
+            "Creator sold most of their tokens",
+            f"The creator sold {_pct(share)} of their tokens within a day of launching.",
+            CREATOR_SELLING_POINTS,
+        )
+    return Reason("Creator has not dumped", f"The creator sold {_pct(share)} of their tokens in the first day, which is not a dump.")
+
+
+def _bundle_dumped(bought: float | None, held: float | None) -> bool:
+    return bought is not None and held is not None and bought >= BUNDLE_DUMP_MIN_SHARE and held <= bought * BUNDLE_DUMP_KEPT
+
+
+def _bundle(bought: float | None, held: float | None) -> Reason:
+    if bought is None or held is None:
+        return Reason("Launch buyers not checked", "We could not see who bought this token when it launched.")
+    if bought < BUNDLE_MIN_SHARE:
+        return Reason("No launch bundle found", "We found no group of linked wallets buying a large share of the supply at launch.")
+    if _bundle_dumped(bought, held):
+        return Reason(
+            "Launch bundle already sold",
+            f"Linked wallets bought {_pct(bought)} of the supply at launch and have since sold almost all of it.",
+            BUNDLE_DUMP_POINTS,
+        )
+    points = 0
+    for threshold, value in zip(BUNDLE_HOLDING_SHARES, BUNDLE_HOLDING_POINTS):
+        if held >= threshold:
+            points = value
+    if points:
+        return Reason(
+            "Linked wallets hold a big share",
+            f"Linked wallets that bought at launch still hold {_pct(held)} of the supply and could sell together at any moment.",
+            points,
+        )
+    return Reason("Launch bundle holds little", f"Linked wallets bought {_pct(bought)} at launch but now hold only {_pct(held)}.")
+
+
 def score_token(signals: TokenSignals) -> TokenRisk:
-    strong = [_deployer(signals.deployer_rugs), _linked(signals.linked_rugs, signals.funder_is_busy)]
+    strong = [
+        _deployer(signals.deployer_rugs),
+        _linked(signals.linked_rugs, signals.funder_is_busy),
+        _creator_sold(signals.creator_sold_share, signals.creator_held_any),
+    ]
+    bundle = _bundle(signals.bundle_bought_share, signals.bundle_held_share)
+    if _bundle_dumped(signals.bundle_bought_share, signals.bundle_held_share):
+        strong.append(bundle)
     weak = [
         _mint_authority(signals.mint_authority),
         _freeze_authority(signals.freeze_authority),
         _deployer_age(signals.deployer_age_hours),
+        *([] if bundle in strong else [bundle]),
     ]
     reasons = [*strong, *weak, *(Reason("Not checked", note) for note in signals.unchecked)]
     score = min(100, sum(r.points for r in reasons))
