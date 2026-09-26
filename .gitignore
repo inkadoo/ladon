@@ -14,3 +14,4 @@ __pycache__/
 .remember/
 .impeccable/
 .DS_Store
+*.egg-info/
