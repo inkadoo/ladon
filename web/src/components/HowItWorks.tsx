@@ -27,13 +27,10 @@ const STEPS = [
 ];
 
 export function HowItWorks() {
-  // -1 until the reader reaches the steps, so step I plays its entrance when they arrive.
   const [stage, setStage] = useState(-1);
   const stepRefs = useRef<(HTMLElement | null)[]>([]);
 
   useEffect(() => {
-    // Pick the step nearest the middle of the screen. Trusting the order of observer
-    // entries picks a step that was only passed through on a fast scroll.
     const pickClosest = () => {
       const mid = window.innerHeight / 2;
       let best = 0;

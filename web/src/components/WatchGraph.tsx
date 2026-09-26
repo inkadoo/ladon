@@ -1,14 +1,7 @@
-// The scam graph drawn as Draco, the constellation Hera made of Ladon. Wallets are stars along
-// the serpent's body; `stage` follows the four steps in HowItWorks:
-// 0 one star reported, 1 confirmed by evidence, 2 its neighbours light up with fading risk,
-// 3 the whole serpent is traced, its eye opens, and your payment is stopped.
-// Reduced motion drops transitions and loops, leaving each stage as a still frame.
-
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 
 export type Point = { x: number; y: number };
 
-// Draco's body from tail to head, then the four stars of the head.
 const BODY: Point[] = [
   { x: 260, y: 178 },
   { x: 222, y: 184 },
@@ -29,10 +22,8 @@ const REPORTED = 8;
 const EXCHANGE: Point = { x: 224, y: 126 };
 const YOU: Point = { x: 24, y: 92 };
 const PAYEE = 7;
-// I: the victim who files the report. II: a drainer contract already known to Ladon.
 const VICTIM: Point = { x: 58, y: 184 };
 const DRAINER: Point = { x: 44, y: 60 };
-// Where your payment is stopped, a little under halfway to the linked wallet.
 const STOP: Point = { x: 73, y: 72 };
 
 const RISK_BY_STEP = [0.94, 0.71, 0.38, 0.12];
@@ -54,7 +45,6 @@ function fade(show: boolean, delay = 0, visible = 1, duration = 450): CSSPropert
   };
 }
 
-// A line that draws itself from `from` to `to` when shown.
 function Trace({ from, to, show, delay = 0, stroke, width = 2, visible = 1, duration = 600 }: { from: Point; to: Point; show: boolean; delay?: number; stroke: string; width?: number; visible?: number; duration?: number }) {
   return (
     <line
@@ -77,7 +67,6 @@ function Trace({ from, to, show, delay = 0, stroke, width = 2, visible = 1, dura
   );
 }
 
-// Four-point star sprites with a square core, sized so they read at a glance.
 export function starPath({ x, y }: Point, size: "sm" | "md" | "lg") {
   const arm = { sm: 3, md: 5, lg: 7 }[size];
   const core = { sm: 1, md: 2, lg: 3 }[size];
@@ -93,7 +82,6 @@ function Star({ at, size, fill, show = true, delay = 0, visible = 1, glow = fals
   );
 }
 
-// A small tag pinned to a star, for its risk score or its role.
 function Chip({ at, show, delay = 0, tone, children, width = 30 }: { at: Point; show: boolean; delay?: number; tone: string; children: ReactNode; width?: number }) {
   return (
     <g className={MOTION} style={fade(show, delay)}>
@@ -116,7 +104,6 @@ export const DESCRIPTIONS = [
   "The whole ring is traced as the serpent Draco and its golden eye opens. Your wallet starts a payment to one of the linked stars, and it is stopped by a warning before you sign.",
 ];
 
-// Four corner brackets that close in on a target, like a sight settling on it.
 function Brackets({ at, stage }: { at: Point; stage: number }) {
   const d = 11;
   const l = 5;
@@ -146,7 +133,6 @@ function Brackets({ at, stage }: { at: Point; stage: number }) {
   );
 }
 
-// II: the risk score counts up once the evidence is in, instead of simply appearing.
 function useScore(stage: number, target: number) {
   const [counted, setCounted] = useState(0);
   useEffect(() => {
@@ -193,7 +179,6 @@ export function WatchGraph({ stage }: { stage: number }) {
         ))}
       </g>
 
-      {/* The serpent's outline is always faintly there; step IV traces it and lights the head. */}
       {BODY.slice(0, -1).map((p, i) => (
         <line
           key={`body-${i}`}
@@ -212,7 +197,6 @@ export function WatchGraph({ stage }: { stage: number }) {
         <Trace key={`head-${i}`} from={p} to={HEAD[(i + 1) % HEAD.length]} show={traced} delay={700 + i * 150} stroke="var(--color-gold)" visible={0.9} duration={400} />
       ))}
 
-      {/* III: risk runs along the serpent from the confirmed star, fading with every step. */}
       {BODY.slice(0, -1).map((p, i) => {
         const far = Math.max(hops(i), hops(i + 1));
         if (far > 2) return null;
@@ -238,7 +222,6 @@ export function WatchGraph({ stage }: { stage: number }) {
         excluded
       </Chip>
 
-      {/* Every wallet is a faint star until the step that reveals it. */}
       {BODY.map((p, i) => {
         if (i === REPORTED) return null;
         const h = hops(i);
@@ -258,7 +241,6 @@ export function WatchGraph({ stage }: { stage: number }) {
       <Chip at={{ x: BODY[9].x - 4, y: BODY[9].y + 18 }} show={linked} delay={450} tone="var(--color-terracotta)">71%</Chip>
       <Chip at={{ x: BODY[10].x + 16, y: BODY[10].y + 2 }} show={linked} delay={900} tone="var(--color-terracotta)">38%</Chip>
 
-      {/* I: a victim's report travels across the sky to the wallet, and a sight closes on it. */}
       <Star at={VICTIM} size="md" fill="var(--color-marble)" show={stage === 0 || evidence} visible={reported ? 1 : 0.4} />
       <Chip at={{ x: VICTIM.x - 32, y: VICTIM.y }} show={reported} tone="var(--color-marble)" width={40}>victim</Chip>
       <Trace from={VICTIM} to={r} show={reported || evidence} delay={reported ? 250 : 0} stroke="var(--color-marble)" width={1.5} visible={reported ? 0.8 : 0.25} duration={650} />
@@ -266,7 +248,6 @@ export function WatchGraph({ stage }: { stage: number }) {
       <Star at={r} size="lg" fill="var(--color-marble)" show={reported} delay={600} className={`animate-[ladon-blink_1.2s_steps(1)_1.3s_infinite] ${MOTION}`} />
       <Chip at={{ x: r.x, y: r.y - 21 }} show={reported} delay={1150} tone="var(--color-marble)" width={18}>?</Chip>
 
-      {/* II: Ladon scans the wallet's history, finds money it received from a known drainer, and the sight locks. */}
       {evidence && (
         <g className="motion-reduce:hidden">
           {[0, 350].map((delay) => (
@@ -296,7 +277,6 @@ export function WatchGraph({ stage }: { stage: number }) {
       <rect x={r.x - 1} y={r.y - 1} width={2} height={2} fill="var(--color-gold)" className={MOTION} style={fade(confirmed, evidence ? 1050 : 0)} />
       <Chip at={{ x: r.x + 4, y: r.y - 21 }} show={confirmed} delay={evidence ? 1000 : 0} tone="var(--color-gold)">{`${score}%`}</Chip>
 
-      {/* IV: Ladon's eye opens, and your payment is stopped short of the linked star. */}
       <Star at={EYE} size="lg" fill="var(--color-gold)" show={traced} delay={1300} glow className={`animate-[ladon-twinkle_2.4s_steps(1)_infinite] ${MOTION}`} />
       <text x={HEAD[3].x - 10} y={HEAD[3].y + 4} textAnchor="end" fill="var(--color-gold)" className={`font-caps ${MOTION}`} style={{ ...fade(traced, 1400), fontSize: 11 }}>
         Draco

@@ -1,7 +1,3 @@
-// Pixel serif lettering, 13px cap height. Thick stems are 3px, hairlines 1px,
-// so the letters keep the thick/thin contrast of a carved Roman capital.
-// In the O: "s" is the serpent (Ladon as an ouroboros), "e" its eye, "a" the apple it guards, "g" the stem.
-
 const L = [
   "#######....",
   "..###......",
@@ -122,7 +118,6 @@ function toRuns(): { runs: Run[]; width: number } {
 const { runs, width } = toRuns();
 
 export function Wordmark({ scale = 8, className = "" }: { scale?: number; className?: string }) {
-  // The ink copy offset by one pixel is the drop shadow; a CSS filter would blur the pixels.
   return (
     <svg
       role="img"

@@ -1,5 +1,3 @@
-// The Solana logomark in a single colour (it takes currentColor), so it sits quietly in the
-// page's palette instead of Solana's purple-to-green gradient.
 export function SolanaMark({ className = "", title }: { className?: string; title?: string }) {
   return (
     <svg

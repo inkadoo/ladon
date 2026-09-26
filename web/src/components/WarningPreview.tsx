@@ -1,6 +1,3 @@
-// A faithful picture of the extension's send warning. It is an illustration on the
-// landing page, so the "buttons" are drawn, not interactive.
-
 import { SolanaMark } from "./SolanaMark";
 
 export function WarningPreview() {

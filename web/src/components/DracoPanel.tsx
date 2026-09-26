@@ -1,6 +1,3 @@
-// The framed night-sky panel for How it works: a stepper naming the process, the Draco scene,
-// and a legend for the stars.
-
 import { DESCRIPTIONS, TEMPLE, WatchGraph, starPath } from "./WatchGraph";
 
 const STEPS = ["Report", "Verify", "Link", "Warn"];

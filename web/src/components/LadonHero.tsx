@@ -6,19 +6,10 @@ import { Wordmark } from "./Wordmark";
 import { SolanaMark } from "./SolanaMark";
 import { GITHUB_URL } from "@/lib/links";
 
-// The hero is one still picture: the painting, with its lower edge frozen mid-fall as a
-// waterfall of pixel blocks trailing into the dark below. Nothing moves; it is drawn once
-// per size and scrolls like any image.
 const BLOCK_CSS_PX = 8;
-// Below the painting's real bottom edge we add a strip that mirrors its ground, so the scene
-// can crumble below the fold without cropping or zooming the painting on screen.
 const GROUND_EXTENSION = 0.14;
-// How far into the fall the frozen frame is. Rows break loose from the bottom up, so this sets
-// how much of the scene has crumbled. Kept inside the mirrored strip, so the first view is intact.
 const FROZEN_AT = 0.12;
-// A ragged break line: some columns let go a little earlier than others.
 const EDGE_SPAN = 0.08;
-// Falling distance, as a share of the painting's height, for the lowest row.
 const LONGEST_FALL = 0.5;
 const GRAVITY = (2 * LONGEST_FALL) / (FROZEN_AT * FROZEN_AT);
 const INK = "#1a1a1a";
@@ -34,7 +25,6 @@ function coverRect(img: HTMLImageElement, w: number, h: number) {
   return { dx: (w - dw) / 2, dy: (h - dh) / 2, dw, dh };
 }
 
-// Seeded so the waterfall has the same shape on every visit and every screen size.
 function seededRandom(seed: number) {
   return () => {
     seed = (seed + 0x6d2b79f5) | 0;
@@ -76,7 +66,6 @@ function paint(canvas: HTMLCanvasElement, img: HTMLImageElement, paintingCssHeig
   sc.scale(1, -1);
   sc.drawImage(scene, 0, paintingH - extension, w, extension, 0, paintingH - extension, w, extension);
   sc.restore();
-  // A block that breaks loose becomes one flat pixel of its average colour.
   smc.drawImage(scene, 0, 0, cols * block, rows * block, 0, 0, cols, rows);
   const colors = smc.getImageData(0, 0, cols, rows).data;
 
@@ -92,7 +81,6 @@ function paint(canvas: HTMLCanvasElement, img: HTMLImageElement, paintingCssHeig
     const edge = clamp01(0.5 + 0.25 * Math.sin(u * 23 + phaseA) + 0.15 * Math.sin(u * 7 + phaseB) + (rand() - 0.5) * 0.2);
     const px = x * block;
 
-    // Rows still attached form one unbroken strip at the top of the column.
     let attached = rows;
     for (let y = rows - 1; y >= 0; y--) {
       const release = (rows - 1 - y) / rows + edge * EDGE_SPAN;
@@ -105,7 +93,6 @@ function paint(canvas: HTMLCanvasElement, img: HTMLImageElement, paintingCssHeig
       const release = (rows - 1 - y) / rows + edge * EDGE_SPAN;
       const t = FROZEN_AT - release;
       const progress = t / FROZEN_AT;
-      // The further a pixel has fallen, the more likely it has already gone, so the stream thins out.
       if (rand() < 0.1 + Math.pow(progress, 1.2) * 0.8) continue;
       const speed = 0.8 + rand() * 0.4;
       const top = Math.round(y * block + 0.5 * GRAVITY * speed * t * t * sceneH);
@@ -137,7 +124,6 @@ export function LadonHero() {
       paint(canvas, img, painting.clientHeight);
       canvas.style.opacity = "1";
     };
-    // Only redraw when the width changes; mobile browsers resize the height as the address bar moves.
     const observer = new ResizeObserver(() => {
       if (section.clientWidth === lastWidth) return;
       lastWidth = section.clientWidth;
@@ -202,7 +188,6 @@ export function LadonHero() {
           </p>
         </div>
       </div>
-      {/* Room below the painting for the falling pixels to trail into. */}
       <div aria-hidden="true" className="h-[80svh]" />
     </section>
   );
