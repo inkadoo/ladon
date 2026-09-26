@@ -76,6 +76,24 @@ class HeliusRpc:
             return None
         return parsed.get("info") or {}
 
+    async def supply(self, mint: str) -> int:
+        result = await self._call("getTokenSupply", [mint])
+        return int(((result or {}).get("value") or {}).get("amount") or 0)
+
+    async def largest_holders(self, mint: str) -> dict[str, int]:
+        result = await self._call("getTokenLargestAccounts", [mint])
+        accounts = (result or {}).get("value") or []
+        if not accounts:
+            return {}
+        owners = await self._call("getMultipleAccounts", [[a["address"] for a in accounts], {"encoding": "jsonParsed"}])
+        holdings: dict[str, int] = {}
+        for account, info in zip(accounts, (owners or {}).get("value") or []):
+            parsed = ((info or {}).get("data") or {}).get("parsed") if isinstance((info or {}).get("data"), dict) else None
+            owner = ((parsed or {}).get("info") or {}).get("owner")
+            if owner:
+                holdings[owner] = holdings.get(owner, 0) + int(account.get("amount") or 0)
+        return holdings
+
     async def close(self) -> None:
         await self._client.aclose()
 

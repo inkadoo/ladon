@@ -27,16 +27,54 @@ def launch(payer: str, mint: str, at: int, via_program: bool = False) -> dict:
     return tx(payer, at, top=[init_mint(mint, "initializeMint")])
 
 
+BASE = 10**15
+
+
+def trade(mint: str, at: int, moves: list[tuple[str, int, int]], slot: int | None = None, payer: str | None = None) -> dict:
+    wallets = [w for w, _, _ in moves]
+    first = payer or wallets[0]
+    keys = [{"pubkey": first, "signer": True}] + [{"pubkey": w, "signer": True} for w in wallets if w != first]
+    pre = [{"accountIndex": i, "mint": mint, "owner": w, "uiTokenAmount": {"amount": str(BASE)}} for i, (w, _, _) in enumerate(moves)]
+    post = [{"accountIndex": i, "mint": mint, "owner": w, "uiTokenAmount": {"amount": str(BASE + d)}} for i, (w, d, _) in enumerate(moves)]
+    lamports = {w: l for w, _, l in moves}
+    return {
+        "blockTime": at,
+        "slot": slot if slot is not None else at,
+        "transactionIndex": 0,
+        "transaction": {"message": {"accountKeys": keys, "instructions": []}},
+        "meta": {
+            "err": None,
+            "innerInstructions": [],
+            "preTokenBalances": pre,
+            "postTokenBalances": post,
+            "preBalances": [10**12 for _ in keys],
+            "postBalances": [10**12 + lamports.get(k["pubkey"], 0) for k in keys],
+        },
+    }
+
+
 def pair(mint: str, liquidity_usd: float) -> dict:
     return {"baseToken": {"address": mint}, "liquidity": {"usd": liquidity_usd}, "priceUsd": "0.0001"}
 
 
 class FakeRpc:
-    def __init__(self, mints: dict, histories: dict, failing: set[str] = frozenset()):
+    def __init__(self, mints: dict, histories: dict, failing: set[str] = frozenset(), holders: dict | None = None, supply: int = 10**15):
         self.mints = mints
         self.histories = histories
         self.failing = failing
+        self.holders = holders or {}
+        self.total = supply
         self.calls: list[tuple[str, bool, int]] = []
+
+    async def supply(self, mint: str) -> int:
+        if "holders" in self.failing:
+            raise SourceError("Helius rate limit reached")
+        return self.total
+
+    async def largest_holders(self, mint: str) -> dict:
+        if "holders" in self.failing:
+            raise SourceError("Helius rate limit reached")
+        return self.holders
 
     async def mint(self, mint: str):
         if "mint" in self.failing:
