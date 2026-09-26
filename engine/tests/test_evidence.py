@@ -1,7 +1,8 @@
-from ladon.evidence import detect_sweeps
-from ladon.helius import parse_transfers
+from ladon.addresses import b58decode, b58encode
+from ladon.evidence import detect_sweeps, detect_takeovers
+from ladon.helius import parse_takeovers, parse_transfers
 from ladon.models import Asset
-from helpers import helius_tx, sol, wallet
+from helpers import helius_tx, sol, takeover_tx, wallet
 
 SWEEPER = wallet("sweeper")
 COLLECTOR = wallet("collector")
@@ -68,3 +69,50 @@ def test_parser_skips_self_transfers_and_empty_fields():
     tx = helius_tx(a, a, lamports=5, at=1, sig="s")
     tx["nativeTransfers"].append({"fromUserAccount": None, "toUserAccount": a, "amount": 10})
     assert parse_transfers([tx, {"signature": "empty"}]) == []
+
+
+ATTACKER = wallet("attacker")
+
+
+def test_decodes_token_account_takeovers():
+    tx = takeover_tx(wallet("victim"), ATTACKER, wallet("token-account"), 1_700_000_000, "t1")
+    [takeover] = parse_takeovers([tx])
+    assert takeover.victim == wallet("victim")
+    assert takeover.attacker == ATTACKER
+    assert takeover.token_account == wallet("token-account")
+
+
+def test_finds_takeovers_hidden_in_inner_instructions_and_token_2022():
+    tx = takeover_tx(wallet("victim"), ATTACKER, wallet("ta"), 1, "t", program="TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb")
+    tx["instructions"] = [{"programId": wallet("some-program"), "accounts": [], "data": "", "innerInstructions": tx["instructions"]}]
+    assert len(parse_takeovers([tx])) == 1
+
+
+def test_ignores_other_authority_changes_and_failed_transactions():
+    tx = takeover_tx(wallet("victim"), ATTACKER, wallet("ta"), 1, "t")
+    close_authority = b58encode(bytes([6, 3, 1]) + b58decode(ATTACKER))
+    tx["instructions"][1]["data"] = close_authority
+    failed = takeover_tx(wallet("victim"), ATTACKER, wallet("ta"), 1, "f")
+    failed["transactionError"] = {"InstructionError": [1, "Custom"]}
+    assert parse_takeovers([tx, failed]) == []
+
+
+def test_moving_your_own_accounts_to_yourself_is_not_a_takeover():
+    me = wallet("me")
+    assert parse_takeovers([takeover_tx(me, me, wallet("ta"), 1, "s")]) == []
+
+
+def test_takeover_evidence_grows_with_each_different_victim():
+    def takeovers(victims):
+        return parse_takeovers([takeover_tx(wallet(f"v{i}"), ATTACKER, wallet(f"ta{i}"), i, f"s{i}") for i in range(victims)])
+
+    one, two, three = (detect_takeovers(ATTACKER, takeovers(n)) for n in (1, 2, 3))
+    assert one.weight < 0.8 <= two.weight < three.weight
+    assert "3 different wallets" in three.text
+    assert detect_takeovers(wallet("bystander"), takeovers(3)) is None
+
+
+def test_one_victim_signing_twice_counts_once():
+    victim = wallet("victim")
+    txs = [takeover_tx(victim, ATTACKER, wallet(f"ta{i}"), i, f"s{i}") for i in range(3)]
+    assert detect_takeovers(ATTACKER, parse_takeovers(txs)).weight == 0.6

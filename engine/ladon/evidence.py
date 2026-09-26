@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 
 from .graph import MIN_LINK
-from .models import Evidence, Transfer
+from .models import Evidence, Takeover, Transfer
 
 SWEEP_WINDOW_SECONDS = 10
 SWEEP_MIN_SHARE = 0.9
@@ -40,7 +40,27 @@ def detect_sweeps(address: str, transfers: Iterable[Transfer], excluded: frozens
     )
 
 
-def detect(address: str, transfers: Iterable[Transfer], excluded: frozenset[str] = frozenset()) -> list[Evidence]:
-    transfers = list(transfers)
-    found = [detect_sweeps(address, transfers, excluded)]
+TAKEOVER_WEIGHTS = (0.6, 0.85, 0.95)
+
+
+def detect_takeovers(address: str, takeovers: Iterable[Takeover]) -> Evidence | None:
+    victims = {t.victim for t in takeovers if t.attacker == address}
+    if not victims:
+        return None
+    count = len(victims)
+    wallets = "wallet" if count == 1 else "different wallets"
+    return Evidence(
+        code="took_token_accounts",
+        weight=TAKEOVER_WEIGHTS[min(count, len(TAKEOVER_WEIGHTS)) - 1],
+        text=f"Was handed ownership of token accounts by {count} {wallets}, the way wallet drainers take control of their victims' tokens.",
+    )
+
+
+def detect(
+    address: str,
+    transfers: Iterable[Transfer],
+    excluded: frozenset[str] = frozenset(),
+    takeovers: Iterable[Takeover] = (),
+) -> list[Evidence]:
+    found = [detect_takeovers(address, takeovers), detect_sweeps(address, list(transfers), excluded)]
     return [e for e in found if e is not None]

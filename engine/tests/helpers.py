@@ -1,6 +1,6 @@
 import hashlib
 
-from ladon.addresses import b58encode
+from ladon.addresses import b58decode, b58encode
 from ladon.models import Asset, Transfer
 
 
@@ -18,6 +18,20 @@ def helius_tx(source: str, destination: str, lamports: int, at: int, sig: str) -
         "timestamp": at,
         "nativeTransfers": [{"fromUserAccount": source, "toUserAccount": destination, "amount": lamports}],
         "tokenTransfers": [],
+    }
+
+
+def takeover_tx(victim: str, attacker: str, token_account: str, at: int, sig: str, program: str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA") -> dict:
+    data = b58encode(bytes([6, 2, 1]) + b58decode(attacker))
+    return {
+        "signature": sig,
+        "timestamp": at,
+        "nativeTransfers": [],
+        "tokenTransfers": [],
+        "instructions": [
+            {"programId": "ComputeBudget111111111111111111111111111111", "accounts": [], "data": "3", "innerInstructions": []},
+            {"programId": program, "accounts": [token_account, victim], "data": data, "innerInstructions": []},
+        ],
     }
 
 

@@ -19,6 +19,15 @@ class Transfer:
 
 
 @dataclass(frozen=True)
+class Takeover:
+    victim: str
+    attacker: str
+    token_account: str
+    timestamp: int
+    signature: str
+
+
+@dataclass(frozen=True)
 class Evidence:
     code: str
     weight: float
