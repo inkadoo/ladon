@@ -1,0 +1,2 @@
+# Exchange hot and deposit wallets that must never inherit risk.
+# One Solana address per line; text after # is a comment. Add only addresses from a source you can cite.
