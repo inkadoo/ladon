@@ -21,6 +21,7 @@ const atkinson = Atkinson_Hyperlegible_Next({
 
 export const metadata: Metadata = {
   title: "Ladon",
+  verification: { google: "hH5u6arn-rwVTQ82KJ-EBVqMDK38Q4CgqpllsrwgQgc" },
   description:
     "Ladon warns you before you send money to a wallet linked to scams, drainers or rug pulls. Open source, with a public API.",
 };
