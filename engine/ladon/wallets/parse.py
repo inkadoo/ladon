@@ -35,6 +35,22 @@ def sol_transfers(txs: list[dict[str, Any]]) -> list[Transfer]:
     return transfers
 
 
+def zero_token_sends(txs: list[dict[str, Any]], wallet: str) -> list[tuple[str, int]]:
+    sends: list[tuple[str, int]] = []
+    for tx in txs:
+        at = int(tx.get("blockTime") or 0)
+        for ins in instructions(tx):
+            if ins.get("program") not in TOKEN_PROGRAMS:
+                continue
+            kind, info = _parsed(ins)
+            if kind not in ("transfer", "transferChecked") or info.get("authority") != wallet or not info.get("destination"):
+                continue
+            amount = info.get("amount") if kind == "transfer" else (info.get("tokenAmount") or {}).get("amount")
+            if str(amount) == "0":
+                sends.append((info["destination"], at))
+    return sends
+
+
 @dataclass(frozen=True)
 class Pull:
     victim: str

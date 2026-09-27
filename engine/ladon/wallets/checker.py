@@ -5,8 +5,8 @@ from datetime import UTC, datetime
 
 from ..models import Evidence, Reason, Transfer
 from ..tokens.sources import HeliusRpc, SourceError
-from .parse import delegated_pulls, sol_transfers
-from .patterns import layering, money_flow, own_actions
+from .parse import delegated_pulls, sol_transfers, zero_token_sends
+from .patterns import DUST_SOL, layering, money_flow, own_actions
 
 HISTORY = 1000
 LAYER_START_SOL = 0.5
@@ -59,8 +59,8 @@ class WalletChecker:
             return WalletFindings(checked=True, notes=(Reason("no_activity", "This wallet has no transactions on Solana yet."),))
 
         transfers = sol_transfers(recent)
-        service = len({t.destination for t in transfers if t.source == address}) >= SERVICE_RECIPIENTS
-        evidence = own_actions(address, recent, delegated_pulls(recent, address))
+        service = len({t.destination for t in transfers if t.source == address and t.amount >= DUST_SOL}) >= SERVICE_RECIPIENTS
+        evidence = own_actions(address, recent, transfers, delegated_pulls(recent, address), zero_token_sends(recent, address))
         notes: list[Reason] = []
         if service:
             notes.append(Reason("busy_wallet", "This wallet pays a very large number of other wallets, like an exchange or payment service, so fast-moving money is not treated as suspicious. What it does with its own tokens is still checked."))

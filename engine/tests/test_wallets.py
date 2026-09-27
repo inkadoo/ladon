@@ -7,8 +7,8 @@ from ladon.config import Settings
 from ladon.engine import Engine
 from ladon.store import MemoryStore
 from ladon.wallets.checker import WalletChecker
-from ladon.wallets.parse import delegated_pulls, sol_transfers
-from ladon.wallets.patterns import drained_victims, dumped_launches, layering, relays
+from ladon.wallets.parse import delegated_pulls, sol_transfers, zero_token_sends
+from ladon.wallets.patterns import drained_victims, dumped_launches, dust_spray, layering, relays
 from helpers import wallet
 from token_fixtures import TOKEN, FakeRpc, launch, sol_transfer, trade, tx
 
@@ -174,3 +174,45 @@ def test_wallet_lookups_are_rate_limited():
     statuses = [api.get(f"/v1/address/{wallet(f'w{i}')}").status_code for i in range(22)]
     assert statuses[:20] == [200] * 20
     assert statuses[20:] == [429, 429]
+
+
+def dust(source: str, destination: str, at: int) -> dict:
+    return tx(source, at, top=[sol_transfer(source, destination, 1)])
+
+
+def zero_send(source: str, destination: str, at: int) -> dict:
+    ins = {"program": "spl-token", "programId": TOKEN, "parsed": {"type": "transferChecked", "info": {"authority": source, "source": wallet("own-ta"), "destination": destination, "mint": MINT, "tokenAmount": {"amount": "0"}}}}
+    return tx(source, at, top=[ins])
+
+
+def test_address_poisoning_dust_spray_is_flagged():
+    txs = [dust(SUSPECT, wallet(f"victim-{i}"), NOW + i) for i in range(1000)]
+    result = findings({SUSPECT: txs})
+    evidence = next(e for e in result.evidence if e.code == "spam_dusting")
+    assert evidence.weight == 0.9
+    assert "1,000 different wallets" in evidence.text
+    assert "Never copy an address" in evidence.text
+    assert not result.infrastructure
+
+
+def test_smaller_dust_sprays_are_flagged_with_less_weight():
+    txs = [dust(SUSPECT, wallet(f"victim-{i}"), NOW + i) for i in range(150)]
+    assert dust_spray(SUSPECT, sol_transfers(txs), []).weight == 0.7
+
+
+def test_zero_amount_token_transfers_count_as_poisoning():
+    txs = [zero_send(SUSPECT, wallet(f"victim-ta-{i}"), NOW + i) for i in range(120)]
+    sends = zero_token_sends(txs, SUSPECT)
+    assert len(sends) == 120
+    assert dust_spray(SUSPECT, [], sends) is not None
+
+
+def test_a_few_tiny_payments_are_not_dusting():
+    txs = [dust(SUSPECT, wallet(f"friend-{i}"), NOW + i) for i in range(20)]
+    assert dust_spray(SUSPECT, sol_transfers(txs), []) is None
+
+
+def test_real_payouts_to_many_wallets_are_not_dusting():
+    txs = [pay(SUSPECT, wallet(f"customer-{i}"), NOW + i, sol=0.5) for i in range(300)]
+    txs += [dust(SUSPECT, wallet(f"x-{i}"), NOW + i) for i in range(10)]
+    assert dust_spray(SUSPECT, sol_transfers(txs), []) is None

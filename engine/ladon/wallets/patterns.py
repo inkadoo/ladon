@@ -14,6 +14,10 @@ RELAY_WEIGHT = 0.35
 DUMP_WEIGHTS = (0.5, 0.75, 0.9)
 PULL_WEIGHTS = (0.6, 0.85, 0.95)
 LAYERING_WEIGHT = 0.45
+DUST_SOL = 0.0001
+DUST_MIN_RECIPIENTS = 100
+DUST_SHARE = 0.8
+DUST_WEIGHTS = ((1000, 0.9), (100, 0.7))
 
 
 def _pick(weights: tuple[float, ...], count: int) -> float:
@@ -70,6 +74,31 @@ def drained_victims(pulls: list[Pull]) -> Evidence | None:
     )
 
 
+def _duration(seconds: int) -> str:
+    hours = seconds / 3600
+    if hours < 2:
+        return "about an hour"
+    if hours < 36:
+        return f"about {round(hours)} hours"
+    return f"about {round(hours / 24)} days"
+
+
+def dust_spray(address: str, transfers: list[Transfer], zero_sends: list[tuple[str, int]]) -> Evidence | None:
+    outgoing = [t for t in transfers if t.source == address]
+    dust = [(t.destination, t.timestamp) for t in outgoing if t.amount < DUST_SOL] + zero_sends
+    recipients = {d for d, _ in dust}
+    if len(recipients) < DUST_MIN_RECIPIENTS or len(dust) < DUST_SHARE * (len(outgoing) + len(zero_sends)):
+        return None
+    weight = next(w for floor, w in DUST_WEIGHTS if len(recipients) >= floor)
+    times = [at for _, at in dust if at]
+    span = _duration(max(times) - min(times)) if times else "a short time"
+    return Evidence(
+        "spam_dusting",
+        weight,
+        f"Sent tiny 'dust' payments to {len(recipients):,} different wallets in {span}. This is address poisoning: it hopes you copy its lookalike address from your history and pay it by mistake. Never copy an address from your transaction history.",
+    )
+
+
 def layering(hops: int, amount: float) -> Evidence | None:
     if hops < 2:
         return None
@@ -83,8 +112,9 @@ def layering(hops: int, amount: float) -> Evidence | None:
 FLOW_CODES = {"sweeps_incoming", "relays_funds", "layered_through_wallets"}
 
 
-def own_actions(address: str, txs: list[dict[str, Any]], pulls: list[Pull]) -> list[Evidence]:
-    return [e for e in (drained_victims(pulls), dumped_launches(address, txs)) if e is not None]
+def own_actions(address: str, txs: list[dict[str, Any]], transfers: list[Transfer], pulls: list[Pull], zero_sends: list[tuple[str, int]]) -> list[Evidence]:
+    found = (drained_victims(pulls), dumped_launches(address, txs), dust_spray(address, transfers, zero_sends))
+    return [e for e in found if e is not None]
 
 
 def money_flow(address: str, transfers: list[Transfer], excluded: frozenset[str]) -> list[Evidence]:
