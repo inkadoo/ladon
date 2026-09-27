@@ -27,11 +27,9 @@ Ladon stays quiet until something is wrong. Then it steps in before your wallet 
 | **Rugs on Axiom** | Coins on Axiom Pulse get labels like "Rugged 7" or "Dev dumped", with the reasons on hover. |
 
 <p align="center">
-  <img src="docs/images/axiom-pulse.png" alt="Coins on Axiom Pulse labelled Rugged 7 and Dev dumped, with Ladon's card explaining the risk" width="430">
-  &nbsp;&nbsp;
-  <img src="docs/images/popup.png" alt="The Ladon popup showing a high risk wallet" width="300">
+  <img src="docs/images/axiom-pulse.png" alt="Coins on Axiom Pulse labelled Rugged 7 and Dev dumped, with Ladon's card explaining the risk" width="520">
 </p>
-<p align="center"><sub>Rug labels right on Axiom Pulse, and a check for any wallet or token from the toolbar.</sub></p>
+<p align="center"><sub>Rug labels right on Axiom Pulse.</sub></p>
 
 Every score is a probability with its reasons, never an accusation. Ladon never signs, blocks or changes anything and never asks for your seed phrase. The choice is always yours.
 
