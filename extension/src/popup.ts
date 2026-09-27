@@ -1,8 +1,6 @@
-import { ApiError, check, report, type AddressRisk, type RiskLevel, type TokenRisk } from "../../shared/api";
+import { ApiError, check, report, walletLevel, type AddressRisk, type RiskLevel, type TokenRisk } from "../../shared/api";
 import { isSolanaAddress, isTransactionSignature, shortAddress } from "../../shared/solana";
 import { track } from "./analytics";
-
-type Level = RiskLevel | "none";
 
 const TITLES: Record<RiskLevel, string> = { high: "High risk", medium: "Medium risk", low: "Low risk" };
 
@@ -63,13 +61,6 @@ function tokenResult(result: TokenRisk): HTMLElement {
     others.length > 0 &&
       el("details", {}, [el("summary", { text: `${others.length} other ${others.length === 1 ? "check" : "checks"}` }), el("ul", { class: "reasons" }, others.map(item))]),
   ]);
-}
-
-function walletLevel(result: AddressRisk): Level {
-  if (result.confidence === "none") return "none";
-  if (result.flagged && result.risk >= 0.8) return "high";
-  if (result.flagged) return "medium";
-  return "low";
 }
 
 function walletResult(result: AddressRisk): HTMLElement {
@@ -165,9 +156,9 @@ function setupReport(): void {
     const target = address.value.trim();
     const tx = signature.value.trim();
     const addressOk = isSolanaAddress(target);
-    const signatureOk = tx === "" || isTransactionSignature(tx);
+    const signatureOk = isTransactionSignature(tx);
     flag(address, addressHint, addressOk, "That doesn't look like a Solana address. Copy it again and paste the whole thing.");
-    flag(signature, signatureHint, signatureOk, "That doesn't look like a transaction signature. Leave it empty if you don't have it.");
+    flag(signature, signatureHint, signatureOk, tx === "" ? "Paste the signature of the transaction where you lost funds." : "That doesn't look like a transaction signature. Copy it again and paste the whole thing.");
     if (!addressOk || !signatureOk) return;
     button.disabled = true;
     button.textContent = "Sending…";

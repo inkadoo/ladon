@@ -23,12 +23,18 @@ function manifest() {
     manifest_version: 3,
     name: "Ladon",
     version: "0.1.0",
-    description: "Check a Solana wallet or token before you pay it or buy it, and report the address that scammed you.",
+    description: "Warns you before you pay a scam wallet, sign a drainer transaction, paste a poisoned address or open a fake Solana site.",
     action: { default_popup: "popup.html", default_title: "Ladon", default_icon: { 16: "icons/icon-16.png", 32: "icons/icon-32.png", 48: "icons/icon-48.png", 128: "icons/icon-128.png" } },
     icons: { 16: "icons/icon-16.png", 32: "icons/icon-32.png", 48: "icons/icon-48.png", 128: "icons/icon-128.png" },
+    permissions: ["storage"],
     host_permissions: [`${api}/*`, ...(env.POSTHOG_KEY ? [`${posthogHost}/*`] : [])],
     background: { service_worker: "background.js" },
-    content_scripts: [{ matches: ["https://axiom.trade/*"], js: ["content.js"], run_at: "document_idle" }],
+    content_scripts: [
+      { matches: ["https://*/*", "http://*/*"], js: ["wallet-hook.js"], run_at: "document_start", world: "MAIN" },
+      { matches: ["https://*/*", "http://*/*"], js: ["guard.js"], run_at: "document_start" },
+      { matches: ["https://axiom.trade/*"], js: ["content.js"], run_at: "document_idle" },
+    ],
+    web_accessible_resources: [{ resources: ["fonts/*.woff2"], matches: ["https://*/*", "http://*/*"] }],
   };
 }
 
@@ -40,7 +46,7 @@ await cp("src/popup.css", "dist/popup.css");
 await writeFile("dist/manifest.json", JSON.stringify(manifest(), null, 2));
 
 const options = {
-  entryPoints: ["src/popup.ts", "src/content.ts", "src/background.ts"],
+  entryPoints: ["src/popup.ts", "src/content.ts", "src/background.ts", "src/guard.ts", "src/wallet-hook.ts"],
   bundle: true,
   format: "iife",
   target: "chrome120",

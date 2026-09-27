@@ -16,6 +16,7 @@ export type TokenRisk = {
 
 export type AddressRisk = {
   address: string;
+  token_account?: string | null;
   risk: number;
   confidence: "none" | "low" | "medium" | "high";
   flagged: boolean;
@@ -23,6 +24,15 @@ export type AddressRisk = {
   cluster_size: number;
   reports: number;
 };
+
+export type WalletLevel = RiskLevel | "none";
+
+export function walletLevel(result: AddressRisk): WalletLevel {
+  if (result.confidence === "none") return "none";
+  if (result.flagged && result.risk >= 0.8) return "high";
+  if (result.flagged) return "medium";
+  return "low";
+}
 
 export type Check = { kind: "token"; result: TokenRisk } | { kind: "wallet"; result: AddressRisk };
 

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { isSolanaAddress, isTransactionSignature, shortAddress } from "./solana.ts";
+import { decodeBase58, encodeBase58, isSolanaAddress, isTransactionSignature, shortAddress } from "./solana.ts";
 
 test("accepts real Solana public keys", () => {
   for (const address of [
@@ -29,4 +29,13 @@ test("recognises transaction signatures and nothing else", () => {
 test("shortens long addresses for display", () => {
   assert.equal(shortAddress("DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"), "DezX…B263");
   assert.equal(shortAddress("short"), "short");
+});
+
+test("base58 round trips keys, including leading zero bytes", () => {
+  for (const address of ["11111111111111111111111111111111", "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "1112jQ5uPX9gv7C3v3gU2zDmr8mGqS8HzNL6H2cgJ3bM"]) {
+    const bytes = decodeBase58(address);
+    assert.ok(bytes);
+    assert.equal(encodeBase58(bytes), address);
+  }
+  assert.equal(decodeBase58("0OIl"), null);
 });

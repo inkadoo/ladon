@@ -35,21 +35,19 @@
           <input id="report-address" name="address" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="report-address-hint" placeholder="Paste the scammer's address" />
           <p id="report-address-hint" class="hint">The wallet or token that took your money.</p>
 
-          <label for="report-signature">Transaction signature <span class="optional">(optional)</span></label>
+          <label for="report-signature">Transaction signature</label>
           <input id="report-signature" name="signature" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="report-signature-hint" placeholder="Paste the transaction signature" />
-          <p id="report-signature-hint" class="hint">The transaction where you lost funds. It lets Ladon find the scammer straight from the chain.</p>
+          <p id="report-signature-hint" class="hint">The transaction where you lost funds.</p>
 
           <label for="report-description">What happened? <span class="optional">(optional)</span></label>
           <textarea id="report-description" name="description" rows="3" maxlength="1000" placeholder="A few words about how it happened"></textarea>
 
           <button type="submit" class="primary wide" id="report-button">Send report</button>
-          <p class="hint">A report starts a check of the wallet's history. It never flags a wallet on its own.</p>
         </form>
         <div id="report-result" aria-live="polite"></div>
       </section>
     </main>
 
-    <footer>Scores are probabilities, not accusations. Ladon never asks for your seed phrase or keys.</footer>
     <script src="popup.js"></script>
   </body>
 </html>
