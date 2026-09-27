@@ -55,3 +55,12 @@ def test_base58_round_trip():
 def test_leading_zero_bytes_survive_round_trip():
     raw = bytes(3) + os.urandom(29)
     assert b58decode(b58encode(raw)) == raw
+
+
+def test_wallets_are_on_the_curve_and_program_addresses_are_not():
+    from ladon.addresses import is_on_curve
+
+    assert is_on_curve("9AhKqLR67hwapvG8SA2JFXaCshXc9nALJjpKaHZrsbkw")
+    assert is_on_curve("3q13J4n4sgzKCQsmabdXfphaFAgUja16jNZqqHp2gbmw")
+    assert not is_on_curve("8WWGEGBdkwzuENVS3ihUHsKVFGsiLbU5ow83cF8w9kYd")
+    assert not is_on_curve("FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM")

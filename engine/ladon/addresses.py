@@ -53,3 +53,24 @@ def is_valid_address(value: object) -> bool:
     except InvalidAddress:
         return False
     return True
+
+
+_P = 2**255 - 19
+_D = (-121665 * pow(121666, _P - 2, _P)) % _P
+_SQRT_M1 = pow(2, (_P - 1) // 4, _P)
+
+
+def is_on_curve(address: str) -> bool:
+    raw = b58decode(address)
+    if len(raw) != 32:
+        return False
+    y = int.from_bytes(raw, "little") & ((1 << 255) - 1)
+    if y >= _P:
+        return False
+    u = (y * y - 1) % _P
+    v = (_D * y * y + 1) % _P
+    x = (u * pow(v, 3, _P) * pow(u * pow(v, 7, _P), (_P - 5) // 8, _P)) % _P
+    vxx = (v * x * x) % _P
+    if vxx == u:
+        return True
+    return vxx == (-u) % _P

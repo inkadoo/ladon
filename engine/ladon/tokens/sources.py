@@ -4,9 +4,12 @@ from typing import Any
 
 import httpx
 
+from ..addresses import is_on_curve
+
 RPC_URL = "https://mainnet.helius-rpc.com/"
 DEX_URL = "https://api.dexscreener.com/tokens/v1/solana/"
 DEX_BATCH = 30
+HELIUS_REQUESTS_PER_SECOND = 8
 RATE_LIMIT_RETRIES = 1
 RATE_LIMIT_BACKOFF_SECONDS = 0.6
 
@@ -22,10 +25,22 @@ class HeliusRpc:
         self._api_key = api_key
         self._client = client or httpx.AsyncClient(timeout=8)
         self._gate = asyncio.Semaphore(concurrency)
+        self._pace = asyncio.Lock()
+        self._next_slot = 0.0
+
+    async def _wait_turn(self) -> None:
+        async with self._pace:
+            loop = asyncio.get_running_loop()
+            now = loop.time()
+            wait = self._next_slot - now
+            self._next_slot = max(now, self._next_slot) + 1 / HELIUS_REQUESTS_PER_SECOND
+        if wait > 0:
+            await asyncio.sleep(wait)
 
     async def _call(self, method: str, params: list[Any]) -> Any:
         for attempt in range(RATE_LIMIT_RETRIES + 1):
             async with self._gate:
+                await self._wait_turn()
                 try:
                     response = await self._client.post(
                         RPC_URL,
@@ -92,7 +107,7 @@ class HeliusRpc:
             owner = ((parsed or {}).get("info") or {}).get("owner")
             if owner:
                 holdings[owner] = holdings.get(owner, 0) + int(account.get("amount") or 0)
-        return holdings
+        return {owner: amount for owner, amount in holdings.items() if is_on_curve(owner)}
 
     async def close(self) -> None:
         await self._client.aclose()
