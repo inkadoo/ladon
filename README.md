@@ -24,14 +24,14 @@ Ladon stays quiet until something is wrong. Then it steps in before your wallet 
 | **Scam wallets** | Ladon reads the transaction a site asks you to sign and checks everyone it pays or hands control to. |
 | **Poisoned addresses** | Scammers send you dust from a lookalike of an address you use. Ladon spots the copy and shows you exactly where it differs. |
 | **Fake sites** | Known scam domains and sites dressed up as Phantom, Solflare, Jupiter, Raydium, Pump.fun, Solscan or DEX Screener get stopped at the door. |
-| **Rugs on Axiom** | Risky coins get a quiet marker on the Buy button, with the reasons on hover. |
+| **Rugs on Axiom** | Coins on Axiom Pulse get labels like "Rugged 7" or "Dev dumped", with the reasons on hover. |
 
 <p align="center">
+  <img src="docs/images/axiom-pulse.png" alt="Coins on Axiom Pulse labelled Rugged 7 and Dev dumped, with Ladon's card explaining the risk" width="430">
+  &nbsp;&nbsp;
   <img src="docs/images/popup.png" alt="The Ladon popup showing a high risk wallet" width="300">
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/images/axiom-buy.png" alt="A Buy button on Axiom with a small Ladon risk marker" width="320">
 </p>
-<p align="center"><sub>Check any wallet or token from the toolbar. On Axiom, the Buy button tells you when a coin looks risky.</sub></p>
+<p align="center"><sub>Rug labels right on Axiom Pulse, and a check for any wallet or token from the toolbar.</sub></p>
 
 Every score is a probability with its reasons, never an accusation. Ladon never signs, blocks or changes anything and never asks for your seed phrase. The choice is always yours.
 
