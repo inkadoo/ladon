@@ -64,7 +64,7 @@ class Engine:
         live = list(findings.evidence)
         codes = {e.code for e in live}
         base = self.store.score(address)
-        links = [self._inherited.get(address), await self._funder_link(address, findings, wallets)]
+        links = [] if findings.infrastructure else [self._inherited.get(address), await self._funder_link(address, findings, wallets)]
         return score_wallet(
             address,
             evidence=[*live, *(e for e in stored if e.code not in codes)],

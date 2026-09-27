@@ -248,6 +248,21 @@ def test_a_wallet_paid_by_a_drainer_inherits_its_risk():
     assert "linked_to_scam" in [r["code"] for r in body["reasons"]]
 
 
+def test_a_busy_service_wallet_never_inherits_risk_from_a_drainer_that_paid_it():
+    drainer = wallet("drainer")
+    payouts = [pay(SUSPECT, wallet(f"customer-{i}"), NOW + 20 + i) for i in range(150)]
+    histories = {
+        drainer: [pull(drainer, wallet(f"v{i}"), NOW + i) for i in range(3)] + [pay(drainer, SUSPECT, NOW + 10, sol=5)],
+        SUSPECT: [pay(drainer, SUSPECT, NOW + 10, sol=5), *payouts],
+    }
+    api = TestClient(create_app(Settings(reporter_salt="test"), Engine(MemoryStore()), wallets=checker(histories)))
+    body = api.get(f"/v1/address/{SUSPECT}").json()
+    codes = [r["code"] for r in body["reasons"]]
+    assert "busy_wallet" in codes
+    assert "linked_to_scam" not in codes
+    assert body["risk"] == 0 and not body["flagged"]
+
+
 def test_a_clean_funder_passes_on_nothing():
     histories = {OTHER: [pay(OTHER, SUSPECT, NOW, sol=5)], SUSPECT: [pay(OTHER, SUSPECT, NOW, sol=5)]}
     api = TestClient(create_app(Settings(reporter_salt="test"), Engine(MemoryStore()), wallets=checker(histories)))
