@@ -1,13 +1,13 @@
 from itertools import product
 
-from ladon.tokens.scoring import HIGH_FROM, Level, TokenSignals, score_token
+from ladon.tokens.scoring import HIGH_FROM, Level, TokenSignals, labels, score_token
 
 
 def test_clean_token_scores_zero_and_still_explains_itself():
     risk = score_token(TokenSignals(deployer_rugs=0, linked_rugs=0, mint_authority=False, freeze_authority=False, deployer_age_hours=500))
     assert risk.score == 0
     assert risk.level is Level.LOW
-    assert len(risk.reasons) == 7
+    assert len(risk.reasons) == 8
     assert all(r.points == 0 for r in risk.reasons)
 
 
@@ -117,3 +117,36 @@ def test_a_bundle_still_holding_warns_but_cannot_reach_high_alone():
 def test_small_bundles_are_ignored():
     risk = score_token(clean(bundle_bought_share=0.05, bundle_held_share=0.0))
     assert "No launch bundle found" in {r.label for r in risk.reasons}
+
+
+def test_concentrated_holders_warn_but_never_reach_high_alone():
+    risk = score_token(clean(top_holders_share=0.45, mint_authority=True, freeze_authority=True, deployer_age_hours=1))
+    assert risk.reasons[0].label == "A few wallets hold a lot"
+    assert "45%" in risk.reasons[0].explanation
+    assert risk.level is Level.MEDIUM
+
+
+def test_spread_out_supply_adds_nothing():
+    risk = score_token(clean(top_holders_share=0.12))
+    assert "Supply is spread out" in {r.label for r in risk.reasons}
+    assert risk.score == 0
+
+
+def test_labels_for_a_serial_rugger_with_a_bundle():
+    signals = clean(deployer_rugs=5, creator_sold_share=0.9, bundle_bought_share=0.3, bundle_held_share=0.25, top_holders_share=0.4)
+    kinds = {l.kind: l for l in labels(signals, score_token(signals))}
+    assert set(kinds) == {"high_risk", "serial_rugger", "dev_dumped", "bundled", "top_holders"}
+    assert kinds["serial_rugger"].text == "Dev rugged 5 coins"
+    assert kinds["bundled"].text == "Bundled 25%"
+    assert kinds["top_holders"].text == "Top 10 hold 40%"
+    assert kinds["serial_rugger"].severity == "danger"
+
+
+def test_one_past_rug_is_not_called_a_serial_rugger():
+    signals = clean(deployer_rugs=1)
+    assert labels(signals, score_token(signals)) == ()
+
+
+def test_a_bundle_that_already_sold_is_labelled_as_sold():
+    signals = clean(bundle_bought_share=0.3, bundle_held_share=0.01)
+    assert [l.kind for l in labels(signals, score_token(signals))] == ["bundle_sold"]

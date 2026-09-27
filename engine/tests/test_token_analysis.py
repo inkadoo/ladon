@@ -217,7 +217,8 @@ def test_endpoint_rejects_addresses_that_are_not_tokens():
 
 def test_endpoint_returns_the_documented_shape():
     body = client(checker(*world())).get(f"/v1/token/{MINT}/risk").json()
-    assert set(body) == {"mint", "deployer", "funder", "score", "level", "reasons", "past_tokens", "checked_at"}
+    assert set(body) == {"mint", "deployer", "funder", "score", "level", "reasons", "past_tokens", "labels", "checked_at"}
+    assert {l["kind"] for l in body["labels"]} >= {"high_risk", "serial_rugger", "dev_dumped"}
     assert set(body["reasons"][0]) == {"label", "explanation", "points"}
     assert set(body["past_tokens"][0]) == {"mint", "created_at", "outcome", "created_by"}
 
@@ -231,3 +232,34 @@ def test_endpoint_is_rate_limited_per_visitor():
 
 def test_endpoint_without_a_helius_key_says_so():
     assert client(None).get(f"/v1/token/{MINT}/risk").status_code == 503
+
+
+def test_top_holders_share_counts_the_ten_biggest_wallets():
+    holders = {wallet(f"h{i}"): 320 for i in range(12)}
+    body = check(*world(), holders=holders)
+    assert points(body)["A few wallets hold a lot"] == 25
+    assert any(l["text"] == "Top 10 hold 32%" for l in body["labels"])
+
+
+def test_quick_mode_skips_funder_tracing_and_dexscreener():
+    mints, histories, pairs = world()
+    c = checker(mints, histories, pairs, dex_fails=True)
+    body = asyncio.run(c.check(MINT, quick=True))
+    assert not any(address == FUNDER for address, _, _ in c.rpc.calls)
+    assert all(p["created_by"] == "deployer" for p in body["past_tokens"])
+    assert "We could not reach DexScreener" not in " ".join(r["explanation"] for r in body["reasons"])
+    assert points(body)["Deployer dumped earlier tokens"] == 45
+
+
+def test_a_full_result_is_reused_for_quick_requests():
+    c = checker(*world())
+    asyncio.run(c.check(MINT))
+    calls = len(c.rpc.calls)
+    asyncio.run(c.check(MINT, quick=True))
+    assert len(c.rpc.calls) == calls
+
+
+def test_quick_checks_have_a_higher_rate_limit():
+    api = client(checker(*world()))
+    codes = [api.get(f"/v1/token/{MINT}/risk?quick=true").status_code for _ in range(25)]
+    assert codes == [200] * 25

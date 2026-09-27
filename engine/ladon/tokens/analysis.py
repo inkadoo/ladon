@@ -4,13 +4,15 @@ from collections import Counter
 from datetime import UTC, datetime
 from typing import Any
 
-from .scoring import TokenSignals, score_token
+from .scoring import TokenSignals, labels, score_token
 from .sources import DexScreener, HeliusRpc, SourceError
 from .trading import creator_sale, launch_bundle
 
 MINT_INSTRUCTIONS = {"initializeMint", "initializeMint2"}
 SYSTEM_PROGRAM = "11111111111111111111111111111111"
 DEPLOYER_HISTORY = 1000
+QUICK_DEPLOYER_HISTORY = 300
+TOP_HOLDERS = 10
 FUNDER_HISTORY = 1000
 LINKED_HISTORY = 300
 LAUNCH_HISTORY = 200
@@ -112,16 +114,17 @@ class TokenChecker:
         self.clock = clock
         self._cache: dict[str, tuple[float, dict[str, Any]]] = {}
 
-    async def check(self, mint: str) -> dict[str, Any]:
-        cached = self._cache.get(mint)
-        if cached and cached[0] > self.clock():
-            return cached[1]
-        result = await self._check(mint)
+    async def check(self, mint: str, quick: bool = False) -> dict[str, Any]:
+        for key in ((mint, False), (mint, True)) if quick else ((mint, False),):
+            cached = self._cache.get(key)
+            if cached and cached[0] > self.clock():
+                return cached[1]
+        result = await self._check(mint, quick)
         partial = any(r["label"] == "Not checked" or r["label"].endswith("not checked") for r in result["reasons"])
-        self._cache[mint] = (self.clock() + (PARTIAL_CACHE_SECONDS if partial else CACHE_SECONDS), result)
+        self._cache[(mint, quick)] = (self.clock() + (PARTIAL_CACHE_SECONDS if partial else CACHE_SECONDS), result)
         return result
 
-    async def _check(self, mint: str) -> dict[str, Any]:
+    async def _check(self, mint: str, quick: bool = False) -> dict[str, Any]:
         now = self.clock()
         unchecked: list[str] = []
 
@@ -155,7 +158,7 @@ class TokenChecker:
             try:
                 oldest, recent = await asyncio.gather(
                     self.rpc.history(deployer, oldest_first=True, limit=20),
-                    self.rpc.history(deployer, oldest_first=False, limit=DEPLOYER_HISTORY),
+                    self.rpc.history(deployer, oldest_first=False, limit=QUICK_DEPLOYER_HISTORY if quick else DEPLOYER_HISTORY),
                 )
                 deployer_tokens = {m: t for m, t in created_mints(recent, deployer).items() if m != mint}
                 funder = first_funder(oldest, deployer)
@@ -167,7 +170,9 @@ class TokenChecker:
         linked: dict[str, tuple[int, str]] | None = None
         histories: dict[str, list[dict[str, Any]]] = {deployer: recent} if deployer and recent is not None else {}
         funder_is_busy = False
-        if funder and funder not in self.excluded:
+        if quick:
+            pass
+        elif funder and funder not in self.excluded:
             try:
                 linked, linked_histories, funder_is_busy = await asyncio.wait_for(
                     self._linked_tokens(funder, deployer or "", mint), LINKED_BUDGET_SECONDS
@@ -183,7 +188,7 @@ class TokenChecker:
         newest = sorted(past.items(), key=lambda kv: kv[1][0], reverse=True)[:PAST_TOKEN_LIMIT]
         dumped = {m: creator_sale(histories.get(w) or [], w, m, t).dumped for m, (t, w, _) in newest}
         try:
-            pairs = await self.dex.pairs([m for m, _ in newest]) if newest else {}
+            pairs = await self.dex.pairs([m for m, _ in newest]) if newest and not quick else {}
         except SourceError:
             pairs = {}
             unchecked.append("We could not reach DexScreener to see which of the deployer's past tokens are still trading.")
@@ -195,8 +200,11 @@ class TokenChecker:
         sale = creator_sale(recent, deployer, mint, created_at) if deployer and recent is not None else None
         bundle_bought: float | None = None
         bundle_held: float | None = None
+        top_holders: float | None = None
         try:
             holdings, supply = await asyncio.wait_for(holders_task, HOLDERS_BUDGET_SECONDS)
+            if supply:
+                top_holders = sum(sorted(holdings.values(), reverse=True)[:TOP_HOLDERS]) / supply
             if launch and deployer and supply:
                 funded = set(sol_recipients(recent or [], deployer))
                 bundle = launch_bundle(launch, mint, deployer, funded, holdings, supply)
@@ -208,6 +216,7 @@ class TokenChecker:
             deployer_rugs=rugs("deployer") if deployer_tokens is not None else None,
             linked_rugs=rugs("linked wallet") if linked is not None else None,
             funder_is_busy=funder_is_busy,
+            funder_skipped=quick,
             mint_authority=bool(info.get("mintAuthority")) if info else None,
             freeze_authority=bool(info.get("freezeAuthority")) if info else None,
             deployer_age_hours=deployer_age_hours,
@@ -215,6 +224,7 @@ class TokenChecker:
             creator_held_any=bool(sale and sale.peak),
             bundle_bought_share=bundle_bought,
             bundle_held_share=bundle_held,
+            top_holders_share=top_holders,
             unchecked=tuple(unchecked),
         )
         risk = score_token(signals)
@@ -229,6 +239,7 @@ class TokenChecker:
                 {"mint": m, "created_at": _iso(t), "outcome": outcomes[m], "created_by": who}
                 for m, (t, _, who) in newest
             ],
+            "labels": [{"kind": l.kind, "text": l.text, "severity": l.severity} for l in labels(signals, risk)],
             "checked_at": _iso(now),
         }
 

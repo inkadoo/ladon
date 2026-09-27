@@ -17,6 +17,9 @@ BUNDLE_DUMP_KEPT = 0.25
 BUNDLE_HOLDING_POINTS = (20, 30)
 BUNDLE_HOLDING_SHARES = (0.2, 0.4)
 BUNDLE_DUMP_POINTS = 30
+TOP_HOLDERS_SHARES = (0.15, 0.3)
+TOP_HOLDERS_POINTS = (15, 25)
+SERIAL_RUGGER_RUGS = 2
 MEDIUM_FROM = 30
 HIGH_FROM = 60
 
@@ -39,6 +42,7 @@ class TokenSignals:
     deployer_rugs: int | None = None
     linked_rugs: int | None = None
     funder_is_busy: bool = False
+    funder_skipped: bool = False
     mint_authority: bool | None = None
     freeze_authority: bool | None = None
     deployer_age_hours: float | None = None
@@ -46,6 +50,7 @@ class TokenSignals:
     creator_held_any: bool = True
     bundle_bought_share: float | None = None
     bundle_held_share: float | None = None
+    top_holders_share: float | None = None
     unchecked: tuple[str, ...] = ()
 
 
@@ -73,7 +78,9 @@ def _deployer(rugs: int | None) -> Reason:
     )
 
 
-def _linked(rugs: int | None, funder_is_busy: bool) -> Reason:
+def _linked(rugs: int | None, funder_is_busy: bool, skipped: bool = False) -> Reason:
+    if skipped:
+        return Reason("Funding link traced in full checks", "Quick checks skip tracing who funded the deployer. The full check includes it.")
     if funder_is_busy:
         return Reason(
             "Funder not traced",
@@ -171,10 +178,53 @@ def _bundle(bought: float | None, held: float | None) -> Reason:
     return Reason("Launch bundle holds little", f"Linked wallets bought {_pct(bought)} at launch but now hold only {_pct(held)}.")
 
 
+def _top_holders(share: float | None) -> Reason:
+    if share is None:
+        return Reason("Top holders not checked", "We could not see who holds the most of this token.")
+    points = 0
+    for threshold, value in zip(TOP_HOLDERS_SHARES, TOP_HOLDERS_POINTS):
+        if share > threshold:
+            points = value
+    if points:
+        return Reason(
+            "A few wallets hold a lot",
+            f"The 10 biggest wallets hold {_pct(share)} of the supply, not counting pools. If they sell together the price collapses.",
+            points,
+        )
+    return Reason("Supply is spread out", f"The 10 biggest wallets hold {_pct(share)} of the supply, not counting pools.")
+
+
+@dataclass(frozen=True)
+class Label:
+    kind: str
+    text: str
+    severity: str
+
+
+def labels(signals: TokenSignals, risk: TokenRisk) -> tuple[Label, ...]:
+    found: list[Label] = []
+    if risk.level is Level.HIGH:
+        found.append(Label("high_risk", "High rug risk", "danger"))
+    if signals.deployer_rugs and signals.deployer_rugs >= SERIAL_RUGGER_RUGS:
+        found.append(Label("serial_rugger", f"Dev rugged {signals.deployer_rugs} coins", "danger"))
+    if signals.linked_rugs and signals.linked_rugs >= SERIAL_RUGGER_RUGS:
+        found.append(Label("linked_rugger", f"Dev's network rugged {signals.linked_rugs}", "danger"))
+    if signals.creator_sold_share is not None and signals.creator_held_any and signals.creator_sold_share >= CREATOR_DUMP_SHARE:
+        found.append(Label("dev_dumped", "Dev dumped", "danger"))
+    bought, held = signals.bundle_bought_share, signals.bundle_held_share
+    if _bundle_dumped(bought, held):
+        found.append(Label("bundle_sold", "Bundle sold", "danger"))
+    elif bought is not None and held is not None and bought >= BUNDLE_MIN_SHARE and held >= BUNDLE_HOLDING_SHARES[0]:
+        found.append(Label("bundled", f"Bundled {_pct(held)}", "warning"))
+    if signals.top_holders_share is not None and signals.top_holders_share > TOP_HOLDERS_SHARES[0]:
+        found.append(Label("top_holders", f"Top 10 hold {_pct(signals.top_holders_share)}", "warning"))
+    return tuple(found)
+
+
 def score_token(signals: TokenSignals) -> TokenRisk:
     strong = [
         _deployer(signals.deployer_rugs),
-        _linked(signals.linked_rugs, signals.funder_is_busy),
+        _linked(signals.linked_rugs, signals.funder_is_busy, signals.funder_skipped),
         _creator_sold(signals.creator_sold_share, signals.creator_held_any),
     ]
     bundle = _bundle(signals.bundle_bought_share, signals.bundle_held_share)
@@ -184,6 +234,7 @@ def score_token(signals: TokenSignals) -> TokenRisk:
         _mint_authority(signals.mint_authority),
         _freeze_authority(signals.freeze_authority),
         _deployer_age(signals.deployer_age_hours),
+        _top_holders(signals.top_holders_share),
         *([] if bundle in strong else [bundle]),
     ]
     reasons = [*strong, *weak, *(Reason("Not checked", note) for note in signals.unchecked)]
