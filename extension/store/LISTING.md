@@ -52,11 +52,15 @@ Warn Solana users before they send money to scam wallets, sign transactions that
 
 **Remote code:** No. All code ships in the package. The extension only fetches data (risk scores and the scam site list) as JSON.
 
-**Data usage** (what leaves the device):
+**Data usage.** Tick these three:
 
-- Collected: the Solana addresses being checked (transaction recipients, addresses checked in the popup, token addresses shown on Axiom), and anything the user types into the report form.
-- Not collected: personally identifiable information, health, financial account credentials, authentication info, personal communications, location, web history (sites are checked locally), user activity or website content.
-- Certify: not sold to third parties, not used or transferred for purposes unrelated to the single purpose, not used to determine creditworthiness or for lending.
+- **Financial and payment information:** the wallets a pending transaction pays are sent to Ladon's API for checking, and reports include a transaction signature.
+- **Location:** the API receives the user's IP address with each request, and stores a one way scrambled code made from it to rate limit reports.
+- **Website content:** on Axiom, the token addresses shown on the page are sent to the API for rug labels.
+
+Leave the rest unticked: personally identifiable information, health, authentication information, personal communications, web history (sites are checked inside the browser), user activity.
+
+Then certify: not sold to third parties, not used or transferred for purposes unrelated to the single purpose, not used to determine creditworthiness or for lending.
 
 **Privacy policy URL:** https://getladon.vercel.app/privacy
 
