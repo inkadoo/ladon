@@ -19,52 +19,35 @@ export function WarningPreview() {
         </div>
 
         <figure className="font-plain">
-          <div className="border-4 border-ink bg-marble text-ink shadow-[8px_8px_0_var(--color-ink)]">
-            <div className="flex items-center gap-3 bg-terracotta px-5 py-4 text-marble sm:px-6">
-              <svg aria-hidden="true" viewBox="0 0 7 7" width="28" height="28" className="pixel shrink-0">
-                <path fill="var(--color-gold)" d="M3 0h1v1H3zM2 1h3v1H2zM2 2h3v1H2zM1 3h5v1H1zM1 4h5v1H1zM0 5h7v2H0z" />
-                <path fill="var(--color-ink)" d="M3 2h1v2H3zM3 5h1v1H3z" />
-              </svg>
-              <p className="text-xl font-bold leading-tight sm:text-2xl">Stop. This wallet is linked to scams.</p>
-            </div>
-
-            <div className="space-y-5 px-5 py-6 sm:px-6">
-              <div>
-                <div className="flex items-baseline justify-between gap-4">
-                  <p className="text-lg font-bold">92% likely to be a scam wallet</p>
-                  <p className="text-sm text-ink/75">High confidence</p>
-                </div>
-                <div aria-hidden="true" className="mt-2 flex gap-0.5">
-                  {Array.from({ length: 20 }, (_, i) => (
-                    <span key={i} className={`h-3 flex-1 ${i < 18 ? "bg-terracotta" : "bg-ink/15"}`} />
-                  ))}
-                </div>
+          <div className="mx-auto max-w-[400px] border-2 border-ink bg-navy text-marble shadow-[inset_0_0_0_1px_rgba(224,102,61,0.55),6px_6px_0_var(--color-ink)]">
+            <div
+              aria-hidden="true"
+              className="pixel h-1.5 bg-[repeating-linear-gradient(90deg,#e0663d_0_6px,transparent_6px_12px)]"
+            />
+            <div className="grid gap-3.5 px-5 pt-4 pb-5">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="font-caps text-lg font-bold leading-none tracking-wide text-gold">Ladon</span>
+                <span className="text-2xl font-bold leading-none text-[#f5b38f] tabular-nums">
+                  92%<small className="ml-1 text-sm font-medium opacity-80">likely</small>
+                </span>
               </div>
-
-              <div>
-                <p className="text-sm font-bold uppercase tracking-wide text-ink/75">Why</p>
-                <ul className="mt-1 list-disc space-y-1 pl-5">
-                  <li>Received money from 3 wallets confirmed as drainers.</li>
-                  <li>Moved every payment out within 10 seconds of it arriving, 214 times.</li>
-                </ul>
-              </div>
-
-              <p className="border-2 border-ink bg-gold/60 px-4 py-3">
-                <strong>Don&rsquo;t send.</strong> If someone asked you to pay this address, stop replying to them.
+              <p className="text-[1.3rem] font-bold leading-snug">This wallet is linked to scams.</p>
+              <p className="flex items-baseline gap-2.5 text-[0.95rem] before:size-1.5 before:shrink-0 before:-translate-y-0.5 before:bg-[#e0663d]">
+                Received money from 3 wallets confirmed as drainers.
               </p>
-
-              <p className="flex items-center gap-2 break-all text-sm text-ink/75">
-                <SolanaMark title="Solana" className="text-ink/60" />
-                To: 7xKX…9fQm
+              <p className="flex items-center gap-2 text-sm text-marble/65">
+                <SolanaMark title="Solana" className="text-marble/60" />
+                To <code className="font-mono text-marble">7xKX…9fQm</code>
               </p>
-
-              <div aria-hidden="true" className="flex flex-wrap gap-3 pt-1">
-                <span className="border-2 border-ink bg-ink px-5 py-2.5 font-bold text-marble">Cancel transfer</span>
-                <span className="px-2 py-2.5 text-ink/75 underline">I understand the risk</span>
+              <div aria-hidden="true" className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                <span className="border-2 border-ink bg-marble px-5 py-2.5 font-bold text-ink shadow-[3px_3px_0_var(--color-ink)]">
+                  Don&rsquo;t send
+                </span>
+                <span className="py-1.5 text-marble/70 underline underline-offset-4">Send anyway</span>
               </div>
             </div>
           </div>
-          <figcaption className="mt-6 text-base text-marble/80">
+          <figcaption className="mx-auto mt-6 max-w-[400px] text-base text-marble/80">
             The warning the extension shows before you sign. Example data.
           </figcaption>
         </figure>

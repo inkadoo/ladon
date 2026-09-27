@@ -13,13 +13,22 @@ Named after the serpent that never slept while guarding the golden apples of the
 
 Every score is a probability with its reasons, not an accusation.
 
+## What the extension catches
+
+- **Scam wallets at signing time.** Before your wallet opens, Ladon reads the transaction a site asks you to sign and checks every wallet it pays or hands control to (SOL and token transfers, token approvals, authority changes).
+- **Address poisoning.** Ladon remembers, only in your browser, the addresses you have used. If a new one copies the start and end of one of them, you get a warning showing where they differ.
+- **Scam and fake sites.** Known phishing domains, and sites dressed up as Phantom, Solflare, Jupiter, Raydium, Pump.fun, Solscan or DEX Screener, get a warning before you connect. The domain list is checked inside your browser, so your browsing never leaves it.
+- **Rug risk on Axiom.** Coins on Axiom Pulse and coin pages are labelled with their rug risk.
+
+Ladon never signs, changes or blocks anything. Every warning leaves the choice with you.
+
 ## Repository
 
 | Path | What it is |
 |---|---|
 | `web/` | The website (Next.js, TypeScript, Tailwind) |
 | `engine/` | The scam graph engine and public API (Python, FastAPI) |
-| `extension/` | The Chrome extension: check a wallet or token, and report a scam, from the toolbar |
+| `extension/` | The Chrome extension: warnings before you sign, phishing and poisoning guards, plus check and report from the toolbar |
 | `shared/` | Address validation and API client shared by the extension and the site |
 
 ## Running the website
@@ -54,7 +63,12 @@ cp .env.example .env   # then fill in your keys
 ```
 
 - `GET /v1/address/{address}` returns a wallet's risk (0 to 1), a confidence level, whether it is flagged, and the reasons.
+- `GET /v1/address/{address}` also accepts a token account, and scores the wallet that owns it.
+- `GET /v1/token/{mint}/risk` returns a token's rug risk from its deployer's history, funding links, settings and holders.
+- `GET /v1/phishing/domains` returns known scam domains: Ladon's own list merged with [Phantom's public blocklist](https://github.com/phantom/blocklist) (MIT).
 - `POST /v1/reports` with `{"address": "...", "description": "..."}` reports a wallet. A report starts a check of its onchain history; it never flags a wallet on its own.
+
+To see how often Ladon wrongly warns on well-known tokens and the wallets that hold them, run `.venv/bin/python scripts/false_positives.py` (needs a Helius key).
 
 ## Research
 
