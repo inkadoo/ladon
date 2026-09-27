@@ -150,3 +150,28 @@ def test_one_past_rug_is_not_called_a_serial_rugger():
 def test_a_bundle_that_already_sold_is_labelled_as_sold():
     signals = clean(bundle_bought_share=0.3, bundle_held_share=0.01)
     assert [l.kind for l in labels(signals, score_token(signals))] == ["bundle_sold"]
+
+
+def test_an_established_token_is_not_raised_by_its_settings_or_big_holders():
+    risky_settings = dict(mint_authority=True, freeze_authority=True, deployer_age_hours=1, top_holders_share=0.7, deployer_rugs=0, linked_rugs=0)
+    young = score_token(TokenSignals(**risky_settings, token_age_days=2, liquidity_usd=5_000_000))
+    old = score_token(TokenSignals(**risky_settings, token_age_days=900, liquidity_usd=5_000_000))
+    assert young.level is not Level.LOW
+    assert old.level is Level.LOW and old.score == 0
+    assert any(r.label == "Established token" for r in old.reasons)
+
+
+def test_an_old_token_with_thin_liquidity_is_not_treated_as_established():
+    risk = score_token(TokenSignals(mint_authority=True, freeze_authority=True, top_holders_share=0.7, token_age_days=900, liquidity_usd=20_000))
+    assert risk.level is not Level.LOW
+
+
+def test_rug_evidence_still_counts_on_an_established_token():
+    risk = score_token(TokenSignals(creator_sold_share=0.95, deployer_rugs=3, token_age_days=400, liquidity_usd=1_000_000))
+    assert risk.level is Level.HIGH
+
+
+def test_a_long_lived_token_needs_less_liquidity_to_count_as_established():
+    settings = dict(mint_authority=True, freeze_authority=True, top_holders_share=0.7)
+    assert score_token(TokenSignals(**settings, token_age_days=400, liquidity_usd=60_000)).level is Level.LOW
+    assert score_token(TokenSignals(**settings, token_age_days=60, liquidity_usd=60_000)).level is not Level.LOW

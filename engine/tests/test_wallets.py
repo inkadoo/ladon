@@ -169,6 +169,24 @@ def test_lookup_of_a_quiet_wallet_is_low_risk_not_unknown():
     assert body["confidence"] == "low"
 
 
+def test_a_token_account_is_scored_as_the_wallet_that_owns_it():
+    token_account = wallet("tokens")
+    histories = {SUSPECT: [pull(SUSPECT, wallet(f"v{i}"), NOW + i) for i in range(3)]}
+    rpc = FakeRpc({}, histories, owners={token_account: SUSPECT})
+    api = TestClient(create_app(Settings(reporter_salt="test"), Engine(MemoryStore()), wallets=WalletChecker(rpc, clock=lambda: NOW)))
+    body = api.get(f"/v1/address/{token_account}").json()
+    assert body["address"] == SUSPECT
+    assert body["token_account"] == token_account
+    assert body["flagged"]
+
+
+def test_a_failed_owner_lookup_still_checks_the_address_itself():
+    rpc = FakeRpc({}, {SUSPECT: [pay(OTHER, SUSPECT, NOW)]}, failing={"owners"})
+    api = TestClient(create_app(Settings(reporter_salt="test"), Engine(MemoryStore()), wallets=WalletChecker(rpc, clock=lambda: NOW)))
+    body = api.get(f"/v1/address/{SUSPECT}").json()
+    assert body["address"] == SUSPECT and body["token_account"] is None
+
+
 def test_wallet_lookups_are_rate_limited():
     api = TestClient(create_app(Settings(reporter_salt="test"), Engine(MemoryStore()), wallets=checker({})))
     statuses = [api.get(f"/v1/address/{wallet(f'w{i}')}").status_code for i in range(22)]
@@ -216,3 +234,33 @@ def test_real_payouts_to_many_wallets_are_not_dusting():
     txs = [pay(SUSPECT, wallet(f"customer-{i}"), NOW + i, sol=0.5) for i in range(300)]
     txs += [dust(SUSPECT, wallet(f"x-{i}"), NOW + i) for i in range(10)]
     assert dust_spray(SUSPECT, sol_transfers(txs), []) is None
+
+
+def test_a_wallet_paid_by_a_drainer_inherits_its_risk():
+    drainer = wallet("drainer")
+    histories = {
+        drainer: [pull(drainer, wallet(f"v{i}"), NOW + i) for i in range(3)] + [pay(drainer, SUSPECT, NOW + 10, sol=5)],
+        SUSPECT: [pay(drainer, SUSPECT, NOW + 10, sol=5)],
+    }
+    api = TestClient(create_app(Settings(reporter_salt="test"), Engine(MemoryStore()), wallets=checker(histories)))
+    body = api.get(f"/v1/address/{SUSPECT}").json()
+    assert body["risk"] > 0.5
+    assert "linked_to_scam" in [r["code"] for r in body["reasons"]]
+
+
+def test_a_clean_funder_passes_on_nothing():
+    histories = {OTHER: [pay(OTHER, SUSPECT, NOW, sol=5)], SUSPECT: [pay(OTHER, SUSPECT, NOW, sol=5)]}
+    api = TestClient(create_app(Settings(reporter_salt="test"), Engine(MemoryStore()), wallets=checker(histories)))
+    body = api.get(f"/v1/address/{SUSPECT}").json()
+    assert body["risk"] == 0
+    assert "linked_to_scam" not in [r["code"] for r in body["reasons"]]
+
+
+def test_paying_a_drainer_does_not_make_you_risky():
+    drainer = wallet("drainer")
+    histories = {
+        drainer: [pull(drainer, wallet(f"v{i}"), NOW + i) for i in range(3)] + [pay(SUSPECT, drainer, NOW + 10, sol=5)],
+        SUSPECT: [pay(SUSPECT, drainer, NOW + 10, sol=5)],
+    }
+    api = TestClient(create_app(Settings(reporter_salt="test"), Engine(MemoryStore()), wallets=checker(histories)))
+    assert api.get(f"/v1/address/{SUSPECT}").json()["risk"] == 0

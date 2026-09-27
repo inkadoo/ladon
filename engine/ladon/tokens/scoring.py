@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 
 DEPLOYER_RUG_POINTS = (0, 25, 45, 60)
@@ -20,6 +20,7 @@ BUNDLE_DUMP_POINTS = 30
 TOP_HOLDERS_SHARES = (0.15, 0.3)
 TOP_HOLDERS_POINTS = (15, 25)
 SERIAL_RUGGER_RUGS = 2
+ESTABLISHED = ((30, 250_000), (180, 50_000))
 MEDIUM_FROM = 30
 HIGH_FROM = 60
 
@@ -51,6 +52,8 @@ class TokenSignals:
     bundle_bought_share: float | None = None
     bundle_held_share: float | None = None
     top_holders_share: float | None = None
+    token_age_days: float | None = None
+    liquidity_usd: float | None = None
     unchecked: tuple[str, ...] = ()
 
 
@@ -194,6 +197,21 @@ def _top_holders(share: float | None) -> Reason:
     return Reason("Supply is spread out", f"The 10 biggest wallets hold {_pct(share)} of the supply, not counting pools.")
 
 
+def established(signals: TokenSignals) -> bool:
+    age, liquidity = signals.token_age_days, signals.liquidity_usd
+    if age is None or liquidity is None:
+        return False
+    return any(age >= days and liquidity >= usd for days, usd in ESTABLISHED)
+
+
+def _established(signals: TokenSignals) -> Reason:
+    days = int(signals.token_age_days or 0)
+    return Reason(
+        "Established token",
+        f"It has traded for {days} days with ${signals.liquidity_usd:,.0f} in liquidity, so its settings and biggest holders count for less than on a new launch.",
+    )
+
+
 @dataclass(frozen=True)
 class Label:
     kind: str
@@ -214,9 +232,9 @@ def labels(signals: TokenSignals, risk: TokenRisk) -> tuple[Label, ...]:
     bought, held = signals.bundle_bought_share, signals.bundle_held_share
     if _bundle_dumped(bought, held):
         found.append(Label("bundle_sold", "Bundle sold", "danger"))
-    elif bought is not None and held is not None and bought >= BUNDLE_MIN_SHARE and held >= BUNDLE_HOLDING_SHARES[0]:
+    elif bought is not None and held is not None and bought >= BUNDLE_MIN_SHARE and held >= BUNDLE_HOLDING_SHARES[0] and not established(signals):
         found.append(Label("bundled", f"Bundled {_pct(held)}", "warning"))
-    if signals.top_holders_share is not None and signals.top_holders_share > TOP_HOLDERS_SHARES[0]:
+    if signals.top_holders_share is not None and signals.top_holders_share > TOP_HOLDERS_SHARES[0] and not established(signals):
         found.append(Label("top_holders", f"Top 10 hold {_pct(signals.top_holders_share)}", "warning"))
     return tuple(found)
 
@@ -237,6 +255,8 @@ def score_token(signals: TokenSignals) -> TokenRisk:
         _top_holders(signals.top_holders_share),
         *([] if bundle in strong else [bundle]),
     ]
+    if established(signals):
+        weak = [replace(r, points=0) for r in weak] + [_established(signals)]
     reasons = [*strong, *weak, *(Reason("Not checked", note) for note in signals.unchecked)]
     score = min(100, sum(r.points for r in reasons))
     if not any(r.points for r in strong):

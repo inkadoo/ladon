@@ -19,8 +19,8 @@ def combine(weights: Iterable[float]) -> float:
 
 def inheritance_text(link: Inheritance) -> str:
     if link.hops == 1:
-        return "Received money directly from a wallet confirmed as a scam."
-    return f"Linked to a wallet confirmed as a scam through {link.hops} transfers."
+        return "Received money directly from a high risk wallet."
+    return f"Linked to a high risk wallet through {link.hops} transfers."
 
 
 def score_wallet(

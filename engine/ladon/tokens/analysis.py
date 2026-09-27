@@ -188,10 +188,13 @@ class TokenChecker:
         newest = sorted(past.items(), key=lambda kv: kv[1][0], reverse=True)[:PAST_TOKEN_LIMIT]
         dumped = {m: creator_sale(histories.get(w) or [], w, m, t).dumped for m, (t, w, _) in newest}
         try:
-            pairs = await self.dex.pairs([m for m, _ in newest]) if newest and not quick else {}
+            pairs = await self.dex.pairs([mint, *([m for m, _ in newest] if not quick else [])])
         except SourceError:
             pairs = {}
-            unchecked.append("We could not reach DexScreener to see which of the deployer's past tokens are still trading.")
+            if newest and not quick:
+                unchecked.append("We could not reach DexScreener to see which of the deployer's past tokens are still trading.")
+        own_pairs = pairs.get(mint)
+        liquidity = max((float((p.get("liquidity") or {}).get("usd") or 0) for p in own_pairs), default=0.0) if own_pairs is not None else None
         outcomes = {m: classify(pairs.get(m, []), dumped[m]) for m, _ in newest}
 
         def rugs(by: str) -> int:
@@ -225,6 +228,8 @@ class TokenChecker:
             bundle_bought_share=bundle_bought,
             bundle_held_share=bundle_held,
             top_holders_share=top_holders,
+            token_age_days=(now - created_at) / 86400 if launch else None,
+            liquidity_usd=liquidity,
             unchecked=tuple(unchecked),
         )
         risk = score_token(signals)

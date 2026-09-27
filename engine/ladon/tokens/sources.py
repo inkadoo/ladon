@@ -91,6 +91,16 @@ class HeliusRpc:
             return None
         return parsed.get("info") or {}
 
+    async def token_account_owner(self, address: str) -> str | None:
+        result = await self._call("getAccountInfo", [address, {"encoding": "jsonParsed"}])
+        value = (result or {}).get("value") or {}
+        data = value.get("data")
+        parsed = data.get("parsed") if isinstance(data, dict) else None
+        if not parsed or parsed.get("type") != "account":
+            return None
+        owner = (parsed.get("info") or {}).get("owner")
+        return owner if isinstance(owner, str) else None
+
     async def supply(self, mint: str) -> int:
         result = await self._call("getTokenSupply", [mint])
         return int(((result or {}).get("value") or {}).get("amount") or 0)
@@ -122,9 +132,9 @@ class DexScreener:
         batches = [mints[i:i + DEX_BATCH] for i in range(0, len(mints), DEX_BATCH)]
         for pairs in await asyncio.gather(*(self._batch(b) for b in batches)):
             for pair in pairs:
-                base = (pair.get("baseToken") or {}).get("address")
-                if base in found:
-                    found[base].append(pair)
+                sides = {(pair.get("baseToken") or {}).get("address"), (pair.get("quoteToken") or {}).get("address")}
+                for mint in sides & found.keys():
+                    found[mint].append(pair)
         return found
 
     async def _batch(self, mints: list[str]) -> list[dict[str, Any]]:

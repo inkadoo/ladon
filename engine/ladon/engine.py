@@ -1,20 +1,22 @@
+import asyncio
 from typing import TYPE_CHECKING
 
 from .evidence import detect
-from .graph import ScamGraph
+from .graph import HOP_DECAY, MIN_LINK, ScamGraph
 from .helius import Helius, parse_takeovers, parse_transfers
-from .models import Confidence, Reason, Score
-from .scoring import CONFIRM_THRESHOLD, KNOWN_DRAINER_RISK, score_wallet
+from .models import Confidence, Inheritance, Reason, Score
+from .scoring import CONFIRM_THRESHOLD, FLAG_THRESHOLD, KNOWN_DRAINER_RISK, combine, score_wallet
 from .store import MemoryStore
 from .wallets.patterns import FLOW_CODES
 
 if TYPE_CHECKING:
     from .db import Database
-    from .wallets.checker import WalletChecker
+    from .wallets.checker import WalletChecker, WalletFindings
 
 EXPAND_LIMIT = 10
 ATTACKER_LIMIT = 3
 MAX_ROUNDS = 5
+FUNDER_CHECKS = 3
 
 
 def unknown(address: str) -> Score:
@@ -62,16 +64,41 @@ class Engine:
         live = list(findings.evidence)
         codes = {e.code for e in live}
         base = self.store.score(address)
+        links = [self._inherited.get(address), await self._funder_link(address, findings, wallets)]
         return score_wallet(
             address,
             evidence=[*live, *(e for e in stored if e.code not in codes)],
-            inherited=self._inherited.get(address),
+            inherited=max((l for l in links if l), key=lambda l: l.risk, default=None),
             reports=self.store.report_count(address),
             known_drainer=address in self.known_drainers,
             cluster_size=base.cluster_size if base else 0,
             notes=findings.notes,
             checked=findings.checked,
         )
+
+    async def _funder_link(self, address: str, findings: "WalletFindings", wallets: "WalletChecker") -> Inheritance | None:
+        received: dict[str, float] = {}
+        for t in findings.transfers:
+            if t.destination == address and t.source not in (address, *self.excluded) and t.amount >= MIN_LINK[t.asset]:
+                received[t.source] = received.get(t.source, 0.0) + t.amount
+        funders = sorted(received, key=received.__getitem__, reverse=True)[:FUNDER_CHECKS]
+        risks = await asyncio.gather(*(self._own_risk(f, wallets) for f in funders))
+        links = [
+            Inheritance(source=funder, hops=1, risk=round(risk * HOP_DECAY[0], 4))
+            for funder, risk in zip(funders, risks)
+            if risk >= FLAG_THRESHOLD
+        ]
+        return max(links, key=lambda l: l.risk, default=None)
+
+    async def _own_risk(self, address: str, wallets: "WalletChecker") -> float:
+        if address in self.known_drainers:
+            return KNOWN_DRAINER_RISK
+        findings = await wallets.check(address)
+        if findings.infrastructure:
+            return 0.0
+        codes = {e.code for e in findings.evidence}
+        stored = [e for e in self.store.evidence.get(address, []) if e.code not in codes]
+        return combine(e.weight for e in [*findings.evidence, *stored])
 
     async def report(self, address: str, reporter: str, description: str, signature: str = "") -> bool:
         report = self.store.add_report(address, reporter, description, signature)

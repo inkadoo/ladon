@@ -1,0 +1,2 @@
+# Scam and phishing domains confirmed by Ladon, one per line.
+# Served with Phantom's public blocklist at GET /v1/phishing/domains.

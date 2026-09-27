@@ -58,8 +58,9 @@ def pair(mint: str, liquidity_usd: float) -> dict:
 
 
 class FakeRpc:
-    def __init__(self, mints: dict, histories: dict, failing: set[str] = frozenset(), holders: dict | None = None, supply: int = 10**15):
+    def __init__(self, mints: dict, histories: dict, failing: set[str] = frozenset(), holders: dict | None = None, supply: int = 10**15, owners: dict | None = None):
         self.mints = mints
+        self.owners = owners or {}
         self.histories = histories
         self.failing = failing
         self.holders = holders or {}
@@ -75,6 +76,11 @@ class FakeRpc:
         if "holders" in self.failing:
             raise SourceError("Helius rate limit reached")
         return self.holders
+
+    async def token_account_owner(self, address: str):
+        if "owners" in self.failing:
+            raise SourceError("Helius rate limit reached")
+        return self.owners.get(address)
 
     async def mint(self, mint: str):
         if "mint" in self.failing:
