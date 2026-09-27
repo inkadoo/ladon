@@ -20,7 +20,7 @@ const atkinson = Atkinson_Hyperlegible_Next({
 });
 
 export const metadata: Metadata = {
-  title: "Ladon: scam protection for Solana",
+  title: "Ladon",
   description:
     "Ladon warns you before you send money to a wallet linked to scams, drainers or rug pulls. Open source, with a public API.",
 };
