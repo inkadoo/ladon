@@ -1,81 +1,104 @@
-# Ladon
+<p align="center">
+  <img src="docs/images/banner.png" alt="Ladon, the serpent guarding the golden apples of the Hesperides" width="100%">
+</p>
 
-Scam and rug pull protection for Solana. Ladon maps the wallets behind drainers, phishing and serial rug pulls, and warns you before you send money to one of them or buy a token they made.
+<h1 align="center">Ladon</h1>
 
-Named after the serpent that never slept while guarding the golden apples of the Hesperides.
+<p align="center"><b>Scam and rug pull protection for Solana.</b><br>
+Ladon maps the wallets behind drainers, phishing sites and serial rug pullers,<br>then stops you before you pay one.</p>
+
+<p align="center">Named after the serpent who never slept while guarding the golden apples.</p>
+
+---
+
+## Warnings you can't miss
+
+<p align="center">
+  <img src="docs/images/warnings.png" alt="Three Ladon warnings: a wallet linked to scams, a poisoned lookalike address and a fake Phantom site" width="100%">
+</p>
+
+Ladon stays quiet until something is wrong. Then it steps in before your wallet even opens.
+
+| Ladon catches | How |
+|---|---|
+| **Scam wallets** | Ladon reads the transaction a site asks you to sign and checks everyone it pays or hands control to. |
+| **Poisoned addresses** | Scammers send you dust from a lookalike of an address you use. Ladon spots the copy and shows you exactly where it differs. |
+| **Fake sites** | Known scam domains and sites dressed up as Phantom, Solflare, Jupiter, Raydium, Pump.fun, Solscan or DEX Screener get stopped at the door. |
+| **Rugs on Axiom** | Risky coins get a quiet marker on the Buy button, with the reasons on hover. |
+
+<p align="center">
+  <img src="docs/images/popup.png" alt="The Ladon popup showing a high risk wallet" width="300">
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="docs/images/axiom-buy.png" alt="A Buy button on Axiom with a small Ladon risk marker" width="320">
+</p>
+<p align="center"><sub>Check any wallet or token from the toolbar. On Axiom, the Buy button tells you when a coin looks risky.</sub></p>
+
+Every score is a probability with its reasons, never an accusation. Ladon never signs, blocks or changes anything and never asks for your seed phrase. The choice is always yours.
 
 ## How it works
 
-1. **Reports come in.** Victims report the address that took their money. A report on its own never flags anything.
-2. **The chain has to agree.** Ladon checks the wallet's own history for evidence: payments to known drainer contracts, funds swept out seconds after arriving, liquidity pulled from a token.
-3. **Linked wallets are exposed.** Scammers move money between wallets they control. Ladon follows those funding trails, so one confirmed report can expose a whole group. Risk fades with every step away, and exchanges, bridges and major protocols never inherit it.
-4. **You get warned before you sign.** The browser extension shows how likely a wallet is to be a scam, and why. It never blocks or signs anything for you.
+1. **Reports come in.** Victims report the address that took their money. A report alone never flags anyone.
+2. **The chain has to agree.** Ladon looks for real evidence in the wallet's history: drainer pulls, money swept out seconds after it lands, liquidity pulled from a token.
+3. **Linked wallets get exposed.** Scammers shuffle money between wallets they control. Ladon follows the trail, so one confirmed report can expose a whole ring. Risk fades with every hop, and exchanges never inherit it.
+4. **You get warned in time.** Before you sign, you see how likely the wallet is to be a scam and why.
 
-Every score is a probability with its reasons, not an accusation.
+## Try it
 
-## What the extension catches
-
-- **Scam wallets at signing time.** Before your wallet opens, Ladon reads the transaction a site asks you to sign and checks every wallet it pays or hands control to (SOL and token transfers, token approvals, authority changes).
-- **Address poisoning.** Ladon remembers, only in your browser, the addresses you have used. If a new one copies the start and end of one of them, you get a warning showing where they differ.
-- **Scam and fake sites.** Known phishing domains, and sites dressed up as Phantom, Solflare, Jupiter, Raydium, Pump.fun, Solscan or DEX Screener, get a warning before you connect. The domain list is checked inside your browser, so your browsing never leaves it.
-- **Rug risk on Axiom.** Coins on Axiom Pulse and coin pages are labelled with their rug risk.
-
-Ladon never signs, changes or blocks anything. Every warning leaves the choice with you.
-
-## Repository
-
-| Path | What it is |
-|---|---|
-| `web/` | The website (Next.js, TypeScript, Tailwind) |
-| `engine/` | The scam graph engine and public API (Python, FastAPI) |
-| `extension/` | The Chrome extension: warnings before you sign, phishing and poisoning guards, plus check and report from the toolbar |
-| `shared/` | Address validation and API client shared by the extension and the site |
-
-## Running the website
-
-```bash
-cd web
-npm install
-npm run dev
-```
-
-## Running the extension
-
-```bash
-cd extension
-npm install
-cp .env.example .env   # set the API URL, and a PostHog key if you want analytics
-npm run build
-npm test
-```
-
-Then open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and choose `extension/dist`. Pin Ladon from the puzzle-piece menu and click its icon to open it. The engine must be running at the API URL. After changing the code, run `npm run build` again and press the reload arrow on the Ladon card.
-
-## Running the engine
+**Engine** (Python)
 
 ```bash
 cd engine
-python3 -m venv .venv
-.venv/bin/pip install -e ".[dev]"
-cp .env.example .env   # then fill in your keys
-.venv/bin/python -m pytest
+python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
+cp .env.example .env        # add your Helius key
 .venv/bin/uvicorn ladon.api:app --env-file .env --reload
 ```
 
-- `GET /v1/address/{address}` returns a wallet's risk (0 to 1), a confidence level, whether it is flagged, and the reasons.
-- `GET /v1/address/{address}` also accepts a token account, and scores the wallet that owns it.
-- `GET /v1/token/{mint}/risk` returns a token's rug risk from its deployer's history, funding links, settings and holders.
-- `GET /v1/phishing/domains` returns known scam domains: Ladon's own list merged with [Phantom's public blocklist](https://github.com/phantom/blocklist) (MIT).
-- `POST /v1/reports` with `{"address": "...", "description": "..."}` reports a wallet. A report starts a check of its onchain history; it never flags a wallet on its own.
+**Extension** (Chrome)
 
-Exchange wallets never inherit risk. They live in `engine/data/exchanges*.txt`: a hand-checked list of major exchanges' wallets, plus OKX's full Solana list from its signed proof of reserves. Refresh OKX's with `.venv/bin/python scripts/import_okx_reserves.py <reserves zip URL>`, and find more candidates to review with `.venv/bin/python scripts/find_exchanges.py --review`.
+```bash
+cd extension
+npm install && cp .env.example .env
+npm run build
+```
 
-To see how often Ladon wrongly warns on well-known tokens and the wallets that hold them, run `.venv/bin/python scripts/false_positives.py` (needs a Helius key).
+Open `chrome://extensions`, turn on Developer mode, click **Load unpacked** and pick `extension/dist`.
+
+**Website** (Next.js)
+
+```bash
+cd web && npm install && npm run dev
+```
+
+Tests: `.venv/bin/python -m pytest` in `engine`, `npm test` in `extension`.
+
+## Open API
+
+The scam graph is public, so any wallet, exchange or trading tool can plug in.
+
+| Endpoint | What you get |
+|---|---|
+| `GET /v1/address/{address}` | A wallet's risk, confidence and reasons. Token accounts are scored as the wallet that owns them. |
+| `GET /v1/token/{mint}/risk` | A token's rug risk from its deployer's past, funding links, settings and holders. |
+| `GET /v1/phishing/domains` | Known scam domains. |
+| `POST /v1/reports` | Report a wallet with `{"address": "...", "description": "..."}`. It starts a check but never flags on its own. |
+
+## Data
+
+- **Exchanges never inherit risk.** `engine/data/exchanges*.txt` holds wallets checked by hand plus every Solana address from OKX's signed proof of reserves. Refresh OKX with `scripts/import_okx_reserves.py` and find new candidates with `scripts/find_exchanges.py --review`.
+- **Scam domains** come from Ladon's own list and [Phantom's public blocklist](https://github.com/phantom/blocklist) (MIT). The extension checks them inside your browser, so your browsing never leaves it.
+- **False positives are measured.** `scripts/false_positives.py` runs Ladon over big established tokens and their top holders. In the latest run, none of the 10 tokens or 8 wallets it checked were flagged.
 
 ## Research
 
-The launch bundle checks (wallets funded by the creator, or several wallets buying in one transaction) follow the methods described in Hu et al., *MemeTrans: A Dataset for Detecting High-Risk Memecoin Launches on Solana* (arXiv:2602.13480). No data from that dataset is used or distributed here.
+The launch bundle checks follow Hu et al., *MemeTrans: A Dataset for Detecting High-Risk Memecoin Launches on Solana* (arXiv:2602.13480). No data from that dataset is used or shared here.
 
-## Open data
+## Repo
 
-The scam graph is available through a public API so any wallet, exchange or trading tool can use it. Ladon never holds keys or funds, and never asks for your seed phrase.
+| Folder | What's inside |
+|---|---|
+| `engine/` | Scam graph engine and public API (Python, FastAPI) |
+| `extension/` | Chrome extension (TypeScript) |
+| `web/` | Website (Next.js, Tailwind) |
+| `shared/` | Address checks and API client used by the site and extension |
+
+Licensed under AGPL 3.0.
