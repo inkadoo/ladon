@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useEffect, useRef } from "react";
 import { Wordmark } from "./Wordmark";
 import { SolanaMark } from "./SolanaMark";
-import { GITHUB_URL } from "@/lib/links";
+import { EXTENSION_URL, GITHUB_URL } from "@/lib/links";
 
 const BLOCK_CSS_PX = 8;
 const GROUND_EXTENSION = 0.14;
@@ -173,13 +173,13 @@ export function LadonHero() {
           </p>
           <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3">
             <a
-              href={GITHUB_URL}
+              href={EXTENSION_URL}
               className="inline-flex items-center gap-3 border-2 border-ink bg-gold px-6 py-3 font-caps text-lg font-bold text-ink shadow-[4px_4px_0_var(--color-ink)] transition-transform duration-150 ease-(--ease-out-quart) hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0_var(--color-ink)]"
             >
-              Follow the build on GitHub
+              Get the Chrome extension
             </a>
             <p className="font-plain text-base text-marble/90 [text-shadow:0_1px_0_var(--color-ink)]">
-              Chrome extension in development
+              Free and open source
             </p>
           </div>
           <p className="mt-8 flex items-center gap-2.5 font-caps text-base tracking-wide text-marble/80 [text-shadow:0_1px_0_var(--color-ink)]">
