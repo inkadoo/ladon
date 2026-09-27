@@ -1,0 +1,26 @@
+# Exchange wallets. They never inherit risk through the scam graph.
+# One address per line, with the owner after a #. Add new ones with
+# scripts/find_exchanges.py --review, or by hand after checking the owner.
+#
+# Sources: labelled exchange wallets gathered from Solscan on 2026-09-27, each
+# checked on-chain for exchange-like activity. OKX entries are also listed in
+# OKX's own signed proof-of-reserves file of 2026-09-08.
+
+38xCLm9kSExfGU1GdyVuX4vop7SZns9kU2mQyTmmMdUP  # Binance cold wallet
+53unSgGWqEWANcPYRF35B2Bgf8BkszUtcccKiXwGGLyr  # Binance.US hot wallet
+FpwQQhQQoEaVu3WU2qZMfF1hx48YyfwsLoRgXG83E99Q  # Coinbase hot wallet 1
+GJRs4FwHtemZ5ZE9x3FNvJ8TMwitKTh21yxdRPqn7npE  # Coinbase hot wallet 2
+5g7yNHyGLJ7fiQ9SN9mf47opDnMjc585kqXWt6d7aBWs  # Coinbase hot wallet
+6LY1JzAFVZsP2a2xKrtU6znQMQ5h4i7tocWdgrkZzkzF  # Kraken hot wallet
+FWznbcNXWQuHTawe9RxvQ2LdCENssh12dsznf4RiouN5  # Kraken hot wallet
+CDhUgGEiUxx1aTbnoiSAKcmBhnGUFRQ6AMzuLQRD5VFZ  # Kraken hot wallet
+8wM44Ryv9DFCSfkgUnPEPgnsc53arT4cnmXL6LnnC4UW  # OKX hot wallet (in OKX proof of reserves)
+3fsEw3NcHfU1oDnZKnWcztMZWta3mnTkjZRGmHmxugQt  # OKX cold wallet (in OKX proof of reserves)
+7cAui6ADtxLnpRr2wYvwJWTkzwgmVF2LYKnjKTLx4xR8  # Bybit wallet 1
+iGdFcQoyR2MwbXMHQskhmNsqddZ6rinsipHc4TNSdwu  # Bybit wallet 10
+Gem2VAypSg7Ai7vjDKPTtqFahpoQWkfgVkyzx3rPoTka  # Bybit wallet 14
+5LZkATrLwHYCQj2YuVbjjgsDZzBk6YfL4pFQRJmtboT2  # Bybit wallet 15
+5PAhQiYdLBd6SVdjzBQDxUAEFyDdF5ExNPQfcscnPRj5  # MEXC exchange wallet
+u6PJ8DtQuPFnfmwHbGFULQ4u4EgjDiyYKjVEsynXq2w  # Gate.io exchange wallet
+6BhBoBB47wSGjK5uzcGWNcTf2oNRPQNuv6GVdkNyj9PB  # KuCoin cold wallet
+A77HErqtfN1hLLpvZ9pCtu66FEtM8BveoaKbbMoZ4RiR  # Bitget exchange wallet

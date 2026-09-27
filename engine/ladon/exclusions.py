@@ -21,8 +21,7 @@ DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
 def load_exclusions(data_dir: Path = DATA_DIR) -> frozenset[str]:
     addresses = set(PROGRAMS)
-    exchanges = data_dir / "exchanges.txt"
-    if exchanges.exists():
+    for exchanges in sorted(data_dir.glob("exchanges*.txt")):
         for line in exchanges.read_text().splitlines():
             entry = line.split("#", 1)[0].strip()
             if entry and is_valid_address(entry):

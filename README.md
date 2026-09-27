@@ -68,6 +68,8 @@ cp .env.example .env   # then fill in your keys
 - `GET /v1/phishing/domains` returns known scam domains: Ladon's own list merged with [Phantom's public blocklist](https://github.com/phantom/blocklist) (MIT).
 - `POST /v1/reports` with `{"address": "...", "description": "..."}` reports a wallet. A report starts a check of its onchain history; it never flags a wallet on its own.
 
+Exchange wallets never inherit risk. They live in `engine/data/exchanges*.txt`: a hand-checked list of major exchanges' wallets, plus OKX's full Solana list from its signed proof of reserves. Refresh OKX's with `.venv/bin/python scripts/import_okx_reserves.py <reserves zip URL>`, and find more candidates to review with `.venv/bin/python scripts/find_exchanges.py --review`.
+
 To see how often Ladon wrongly warns on well-known tokens and the wallets that hold them, run `.venv/bin/python scripts/false_positives.py` (needs a Helius key).
 
 ## Research
