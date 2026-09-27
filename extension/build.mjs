@@ -23,6 +23,7 @@ function manifest() {
     manifest_version: 3,
     name: "Ladon",
     version: "0.1.0",
+    homepage_url: "https://getladon.vercel.app",
     description: "Warns you before you pay a scam wallet, sign a drainer transaction, paste a poisoned address or open a fake Solana site.",
     action: { default_popup: "popup.html", default_title: "Ladon", default_icon: { 16: "icons/icon-16.png", 32: "icons/icon-32.png", 48: "icons/icon-48.png", 128: "icons/icon-128.png" } },
     icons: { 16: "icons/icon-16.png", 32: "icons/icon-32.png", 48: "icons/icon-48.png", 128: "icons/icon-128.png" },

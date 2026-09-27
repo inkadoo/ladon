@@ -7,7 +7,8 @@
     "build": "node build.mjs",
     "watch": "node build.mjs --watch",
     "typecheck": "tsc --noEmit",
-    "test": "node --test ../shared/*.test.ts src/*.test.ts"
+    "test": "node --test ../shared/*.test.ts src/*.test.ts",
+    "package": "LADON_API_URL=https://ladon-api.vercel.app node build.mjs && rm -f ladon-extension.zip && cd dist && zip -qr ../ladon-extension.zip ."
   },
   "devDependencies": {
     "@types/chrome": "^0.3.0",

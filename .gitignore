@@ -15,3 +15,6 @@ __pycache__/
 .impeccable/
 .DS_Store
 *.egg-info/
+
+# Chrome Web Store upload
+extension/ladon-extension.zip
