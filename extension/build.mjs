@@ -53,6 +53,7 @@ const options = {
   target: "chrome120",
   outdir: "dist",
   minify: !watch,
+  alias: env.POSTHOG_KEY ? {} : { "posthog-js": "./src/posthog-off.ts" },
   define: {
     LADON_API_URL: JSON.stringify(api),
     POSTHOG_KEY: JSON.stringify(env.POSTHOG_KEY || ""),
