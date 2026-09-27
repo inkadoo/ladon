@@ -27,6 +27,8 @@ function manifest() {
     action: { default_popup: "popup.html", default_title: "Ladon", default_icon: { 16: "icons/icon-16.png", 32: "icons/icon-32.png", 48: "icons/icon-48.png", 128: "icons/icon-128.png" } },
     icons: { 16: "icons/icon-16.png", 32: "icons/icon-32.png", 48: "icons/icon-48.png", 128: "icons/icon-128.png" },
     host_permissions: [`${api}/*`, ...(env.POSTHOG_KEY ? [`${posthogHost}/*`] : [])],
+    background: { service_worker: "background.js" },
+    content_scripts: [{ matches: ["https://axiom.trade/*"], js: ["content.js"], run_at: "document_idle" }],
   };
 }
 
@@ -38,11 +40,11 @@ await cp("src/popup.css", "dist/popup.css");
 await writeFile("dist/manifest.json", JSON.stringify(manifest(), null, 2));
 
 const options = {
-  entryPoints: ["src/popup.ts"],
+  entryPoints: ["src/popup.ts", "src/content.ts", "src/background.ts"],
   bundle: true,
   format: "iife",
   target: "chrome120",
-  outfile: "dist/popup.js",
+  outdir: "dist",
   minify: !watch,
   define: {
     LADON_API_URL: JSON.stringify(api),
