@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Wordmark } from "@/components/Wordmark";
-import { EXTENSION_URL } from "@/lib/links";
+import "./airdrop.css";
 import { airApi, AirApiError, SESSION_KEY } from "@/lib/airdrop";
 import type { Leader, Profile, Quests } from "@/lib/airdrop";
 import { signInWallet } from "@/lib/wallet";
@@ -17,7 +17,7 @@ const buttonClass = "inline-flex items-center justify-center gap-2 border-2 bord
 const secondaryClass = "inline-flex items-center justify-center border border-marble/45 px-4 py-2.5 font-caps text-lg text-marble hover:border-gold hover:text-gold disabled:cursor-not-allowed disabled:opacity-45";
 
 function QuestCard({ number, title, reward, done, children }: { number: string; title: string; reward: string; done?: boolean; children: ReactNode }) {
-  return <article className={`flex flex-col border-2 p-6 ${done ? "border-dragon-light/70 bg-dragon/10" : "border-marble/25 bg-navy/40"}`}>
+  return <article className={`quest reveal flex flex-col border p-6 ${done ? "border-dragon-light/70 bg-dragon/10" : "border-marble/20 bg-navy/40"}`}>
     <div className="flex items-center justify-between gap-3 font-caps text-sm"><span className="text-marble/65">QUEST {number}</span><span className={done ? "text-dragon-light" : "text-gold"}>{done ? "✓ Completed" : reward}</span></div>
     <h3 className="mt-4 text-3xl leading-tight">{title}</h3>
     <div className="mt-3 flex flex-1 flex-col gap-4 font-plain text-base text-marble/85">{children}</div>
@@ -117,6 +117,25 @@ export default function AirdropPage() {
     return () => { provider.removeListener?.("accountChanged", changed); provider.removeListener?.("disconnect", changed); };
   }, [provider, wallet]);
 
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const elements = document.querySelectorAll<HTMLElement>(".airdrop .reveal");
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("is-visible");
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.08 });
+    elements.forEach((element, index) => {
+      element.style.setProperty("--reveal-delay", `${(index % 3) * 90}ms`);
+      element.classList.add("will-reveal");
+      observer.observe(element);
+    });
+    return () => observer.disconnect();
+  }, []);
+
   async function run(work: () => Promise<void>) {
     setBusy(true); setNotice("");
     try { await work(); }
@@ -135,7 +154,7 @@ export default function AirdropPage() {
       sessionStorage.setItem(SESSION_KEY, session.token);
       setWallet(session.wallet); setProvider(session.provider); setRisk(null);
       await loadProfile(session.wallet);
-      setNotice("Wallet verified. Your points account is secured by your signature.");
+      setNotice("Wallet connected.");
     });
   }
 
@@ -156,7 +175,7 @@ export default function AirdropPage() {
       await airApi("/join", { wallet, referral_code: referral });
       sessionStorage.removeItem("ladon_referral");
       await refresh(wallet);
-      setNotice("Welcome to Season 1. Your join reward is recorded.");
+      setNotice("Welcome to the watch. +50 points.");
     });
   }
 
@@ -200,49 +219,49 @@ export default function AirdropPage() {
   const canClaim = !!profile && !!quests?.connected && !busy;
   const points = profile?.points ?? 0;
 
-  return <main className="min-h-screen bg-ink text-marble">
+  return <main className="airdrop min-h-screen bg-ink text-marble">
     <div className="meander-sm" aria-hidden="true" />
-    <div className="mx-auto max-w-6xl px-5 pb-20 sm:px-10">
+    <div className="mx-auto max-w-7xl px-5 pb-20 sm:px-10">
       <header className="flex flex-wrap items-center justify-between gap-4 py-7">
         <Link href="/" aria-label="Ladon home"><Wordmark scale={3} /></Link>
-        <nav aria-label="Airdrop" className="flex gap-5 font-caps"><a href="https://x.com/ladon_sol" target="_blank" rel="noopener noreferrer" className="hover:text-gold">@ladon_sol ↗</a><Link href="/" className="hover:text-gold">Home</Link></nav>
+        <nav aria-label="Airdrop" className="flex gap-5 font-caps"><a href="https://x.com/ladon_sol" target="_blank" rel="noopener noreferrer" className="hover:text-gold">@ladon_sol ↗</a><a href="#quests" className="border-b border-gold pb-1 text-gold">✦ Airdrop</a></nav>
       </header>
-      <section className="grid gap-8 border-y border-gold/50 py-12 lg:grid-cols-[1.3fr_1fr] lg:py-16">
-        <div><p className="font-caps text-lg tracking-widest text-gold">✦ Ladon Airdrop · Season 1</p>
-          <h1 className="mt-4 text-5xl leading-tight sm:text-7xl">Join the first watch.</h1>
-          <p className="mt-5 max-w-xl text-xl text-marble/90">Connect your wallet. Spread the word. Earn Ladon Points for helping make Solana safer.</p>
-          <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 font-caps text-gold"><span>01 Connect</span><span>02 Complete quests</span><span>03 Earn points</span></div>
-          <p className="mt-5 max-w-xl font-plain text-sm text-marble/70">Season 1 tracks participation points. A future token allocation is not guaranteed.</p>
+      <section className="air-hero grid gap-8 py-12 lg:grid-cols-[1.3fr_1fr] lg:py-20">
+        <div className="air-painting" role="img" aria-label="Ladon guarding the golden apples" /><div className="air-sparks" aria-hidden="true">{Array.from({ length: 8 }, (_, i) => <span key={i} style={{ left: `${38 + i * 8}%`, top: `${12 + (i % 4) * 20}%`, animationDelay: `${i * -1.3}s` }}>✦</span>)}</div><div className="air-intro"><p className="font-caps text-sm tracking-[0.24em] text-gold">✦ The first watch · Season 1</p>
+          <h1 className="mt-5 text-6xl leading-[0.95] sm:text-8xl">Guard the garden.<br /><em className="text-gold">Earn your place.</em></h1>
+          <p className="mt-5 max-w-xl text-xl text-marble/90">Join Ladon. Complete quests. Collect points.</p>
+          <a href="#quests" className="mt-8 inline-flex items-center gap-4 font-caps text-gold">Explore the quests ↓</a>
+
         </div>
-        <section aria-labelledby="wallet-title" className="border-2 border-gold/70 bg-navy p-6 shadow-[6px_6px_0_var(--color-gold)] sm:p-7">
-          <p className="font-caps text-gold">Your season passport</p>
-          <h2 id="wallet-title" className="mt-2 text-3xl">{wallet ? "Wallet verified" : "Connect your wallet"}</h2>
-          {wallet ? <><p className="mt-4 break-all font-plain text-sm">{wallet}</p><p className="mt-3 text-5xl text-gold">{points}<span className="ml-3 font-caps text-lg text-marble">Ladon Points</span></p>
+        <section aria-labelledby="wallet-title" className="wallet-passport border border-gold/70 p-6 sm:p-7 lg:mt-44">
+          <p className="font-caps text-gold">Season passport · Solana</p>
+          <h2 id="wallet-title" className="mt-2 text-3xl">{wallet ? "Welcome, guardian" : "Your journey starts here"}</h2>
+          {wallet ? <><p className="mt-4 break-all font-plain text-sm">{shortAddress(wallet)}</p><p className="mt-3 text-5xl text-gold">{points}<span className="ml-3 font-caps text-lg text-marble">Ladon Points</span></p>
             {!profile && <button className={`${buttonClass} mt-5 w-full`} onClick={join} disabled={busy}>Join Season 1 · +50 points</button>}
             <button className="mt-5 font-plain text-sm text-marble/75 underline underline-offset-4" onClick={disconnect} disabled={busy}>Disconnect</button>
-          </> : <><p className="mt-3 font-plain text-base text-marble/80">Choose your Solana wallet, then sign a message to prove it belongs to you.</p><div className="mt-5 grid gap-3">{(["Phantom", "Solflare", "Backpack"] as const).map((name) => <button key={name} className={name === "Phantom" ? buttonClass : secondaryClass} disabled={busy || restoring} onClick={() => connect(name)}>Connect {name} ↗</button>)}</div>
+          </> : <><div className="mt-5 grid gap-3">{(["Phantom", "Solflare", "Backpack"] as const).map((name) => <button key={name} className={name === "Phantom" ? buttonClass : secondaryClass} disabled={busy || restoring} onClick={() => connect(name)}>Connect {name} ↗</button>)}</div>
             <p className="mt-4 font-plain text-xs text-marble/65">On mobile, open this page in your wallet’s browser.</p></>}
-          <p className="mt-5 border-t border-marble/20 pt-4 font-plain text-sm text-marble/75">The signature secures your account. It costs no SOL and gives Ladon no access to your funds.</p>
+          <p className="mt-5 border-t border-marble/20 pt-4 font-plain text-sm text-marble/75">Free message signature. No access to your funds.</p>
         </section>
       </section>
       {notice && <p role="status" className="mt-6 border-l-4 border-gold bg-navy px-4 py-3 font-plain">{notice}</p>}
       {profile && <section aria-label="Your Season 1 progress" className="mt-9"><div className="grid grid-cols-2 gap-3 md:grid-cols-4">{[["Your rank", `#${profile.rank}`], ["Daily streak", `${profile.streak} days`], ["Wallet checks", `${profile.checks_today} / 5 today`], ["Friends joined", profile.referral_count]].map(([label, value]) => <div key={label} className="border border-marble/30 bg-navy p-4"><p className="font-caps text-sm text-gold">{label}</p><p className="mt-1 text-2xl">{value}</p></div>)}</div><p className="mt-5 font-plain text-sm text-marble/75">{profile.next_milestone - points} points to your next milestone</p><progress aria-label="Points towards next milestone" className="mt-2 h-2 w-full accent-gold" value={points % 100} max={100} /></section>}
-      <section aria-labelledby="quests-title" className="mt-14">
-        <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="font-caps tracking-widest text-gold">The watch grows with you</p><h2 id="quests-title" className="mt-2 text-4xl sm:text-5xl">Your Season 1 quests</h2></div><p className="max-w-sm font-plain text-sm text-marble/70">One wallet and one X account per participant. Social rewards are earned once.</p></div>
-        <div className="mt-7 grid gap-4 md:grid-cols-2">
-          <QuestCard number="01" title="Join Season 1" reward="+50 points" done={!!profile}><p>Secure your place in the first season with a verified Solana wallet.</p>{profile ? <p className="mt-auto text-dragon-light">You’re part of the first watch.</p> : <button className={`${buttonClass} mt-auto self-start`} disabled={!wallet || busy} onClick={join}>{wallet ? "Join Season 1" : "Connect your wallet above"}</button>}</QuestCard>
-          <QuestCard number="02" title="Connect your X account" reward="+25 points" done={done("x_connect")}><p>Link your X identity so Ladon can verify your promotional quests.</p><p className="text-sm text-marble/65">Read access to your profile, follows, and posts. You choose what to publish.</p>{!xEnabled ? <p className="mt-auto font-caps text-gold">X rewards opening soon</p> : <button className={`${buttonClass} mt-auto self-start`} disabled={!profile || busy || quests?.connected} onClick={connectX}>{quests?.connected ? `Connected @${quests.username}` : "Connect X"}</button>}{quests?.connected && <button className="self-start text-sm underline underline-offset-4" disabled={busy} onClick={() => void run(async () => { setQuests(await airApi<Quests>("/x/disconnect", {})); setNotice("X access removed. Your completed rewards stay recorded."); })}>Remove X access</button>}</QuestCard>
-          <QuestCard number="03" title="Follow @ladon_sol" reward="+50 points" done={done("x_follow")}><p>Follow Ladon for security updates and news from the watch.</p><div className="mt-auto flex flex-wrap gap-3"><a className={secondaryClass} href="https://x.com/intent/follow?screen_name=ladon_sol" target="_blank" rel="noopener noreferrer">Follow on X ↗</a><button className={buttonClass} disabled={!canClaim || done("x_follow")} onClick={() => claim("x_follow")}>{done("x_follow") ? "Reward earned" : "Verify follow"}</button></div></QuestCard>
-          <QuestCard number="04" title="Spread the word" reward="+150 points" done={done("x_post")}><p>Publish the prepared post about @ladon_sol. It includes your invitation link and discloses the points incentive.</p>{quests && <><blockquote className="border-l-2 border-gold bg-ink p-4 text-sm leading-relaxed">{quests.post_text}</blockquote><a className={`${secondaryClass} self-start`} href={`https://x.com/intent/post?text=${encodeURIComponent(quests.post_text)}`} target="_blank" rel="noopener noreferrer">Open prepared post ↗</a></>}<form className="mt-auto space-y-3" onSubmit={(event) => { event.preventDefault(); claim("x_post"); }}><label className="block text-sm" htmlFor="post-url">Paste your published X post link</label><input id="post-url" type="url" className={inputClass} value={postUrl} onChange={(event) => setPostUrl(event.target.value)} placeholder="https://x.com/you/status/…" disabled={!profile || done("x_post")} /><button className={buttonClass} disabled={!canClaim || !postUrl || done("x_post")}>{done("x_post") ? "Reward earned" : "Verify post"}</button></form></QuestCard>
-          <QuestCard number="05" title="Invite a friend" reward="+100 you · +25 friend"><p>Share your invitation. When a new wallet signs in and joins through your link, you both earn points.</p>{profile ? <><label htmlFor="referral" className="text-sm">Your invitation link</label><input id="referral" className={inputClass} value={referralLink} readOnly onFocus={(event) => event.target.select()} /><button className={`${secondaryClass} self-start`} onClick={() => void run(async () => { await navigator.clipboard.writeText(referralLink); setNotice("Invitation link copied."); })}>Copy invitation</button></> : <p className="mt-auto text-sm text-marble/65">Your personal link appears after you join.</p>}</QuestCard>
-          <QuestCard number="06" title={checkedIn ? "Return tomorrow" : "Keep a daily watch"} reward="+10 points / day" done={checkedIn}><p>Check in once per UTC day and build your streak.</p><button className={`${buttonClass} mt-auto self-start`} onClick={checkin} disabled={!profile || busy || checkedIn}>{checkedIn ? "Completed today" : "Daily check-in"}</button></QuestCard>
-          <QuestCard number="07" title="Check a wallet" reward="+5 points / unique check"><p>Check a Solana address with Ladon. Up to five unique successful checks earn points per UTC day.</p><form className="mt-auto space-y-3" onSubmit={(event) => { event.preventDefault(); checkTarget(); }}><label className="sr-only" htmlFor="target">Wallet to check</label><input id="target" className={inputClass} value={target} onChange={(event) => setTarget(event.target.value)} placeholder="Solana wallet address" /><button className={buttonClass} disabled={!profile || busy}>Check wallet</button></form></QuestCard>
-          <QuestCard number="08" title="Help protect the next person" reward="Future verified reports"><p>Use Ladon to report suspected scams. Reports start an investigation; submitting one does not automatically earn points.</p><a className={`${secondaryClass} mt-auto self-start`} href={EXTENSION_URL}>Get the Ladon extension ↗</a></QuestCard>
+      <section id="quests" aria-labelledby="quests-title" className="mt-14 scroll-mt-6">
+        <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="font-caps tracking-widest text-gold">Gather the golden apples</p><h2 id="quests-title" className="mt-2 text-4xl sm:text-5xl">Small acts. A stronger watch.</h2></div></div>
+        <div className="quest-grid mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <QuestCard number="01" title="Join Season 1" reward="+50 points" done={!!profile}><p></p>{profile ? <p className="mt-auto text-dragon-light">You’re part of the first watch.</p> : <button className={`${buttonClass} mt-auto self-start`} disabled={!wallet || busy} onClick={join}>{wallet ? "Join Season 1" : "Connect your wallet above"}</button>}</QuestCard>
+          <QuestCard number="02" title="Connect your X account" reward="+25 points" done={done("x_connect")}><p>One account. Your social rewards.</p><p className="text-sm text-marble/65"></p>{!xEnabled ? <p className="mt-auto font-caps text-gold">X verification awaiting activation</p> : <button className={`${buttonClass} mt-auto self-start`} disabled={!profile || busy || quests?.connected} onClick={connectX}>{quests?.connected ? `Connected @${quests.username}` : "Connect X"}</button>}{quests?.connected && <button className="self-start text-sm underline underline-offset-4" disabled={busy} onClick={() => void run(async () => { setQuests(await airApi<Quests>("/x/disconnect", {})); setNotice("X access removed. Your completed rewards stay recorded."); })}>Remove X access</button>}</QuestCard>
+          <QuestCard number="03" title="Follow @ladon_sol" reward="+50 points" done={done("x_follow")}><p></p><div className="mt-auto flex flex-wrap gap-3"><a className={secondaryClass} href="https://x.com/intent/follow?screen_name=ladon_sol" target="_blank" rel="noopener noreferrer">Follow on X ↗</a><button className={buttonClass} disabled={!canClaim || done("x_follow")} onClick={() => claim("x_follow")}>{done("x_follow") ? "Reward earned" : "Verify follow"}</button></div></QuestCard>
+          <QuestCard number="04" title="Spread the word" reward="+150 points" done={done("x_post")}><p>Share our prepared post.</p>{quests && <><details className="text-xs"><summary className="cursor-pointer text-marble/65">Preview post</summary><p className="mt-2 leading-relaxed">{quests.post_text}</p></details><a className={`${secondaryClass} self-start`} href={`https://x.com/intent/post?text=${encodeURIComponent(quests.post_text)}`} target="_blank" rel="noopener noreferrer">Open prepared post ↗</a></>}<form className="mt-auto space-y-3" onSubmit={(event) => { event.preventDefault(); claim("x_post"); }}><label className="block text-sm" htmlFor="post-url">Your published post</label><input id="post-url" type="url" className={inputClass} value={postUrl} onChange={(event) => setPostUrl(event.target.value)} placeholder="https://x.com/you/status/…" disabled={!profile || done("x_post")} /><button className={buttonClass} disabled={!canClaim || !postUrl || done("x_post")}>{done("x_post") ? "Reward earned" : "Verify post"}</button></form></QuestCard>
+          <QuestCard number="05" title="Invite a friend" reward="+100 you · +25 friend"><p>You get +100. They get +25.</p>{profile ? <><label htmlFor="referral" className="text-sm">Your invitation link</label><input id="referral" className={inputClass} value={referralLink} readOnly onFocus={(event) => event.target.select()} /><button className={`${secondaryClass} self-start`} onClick={() => void run(async () => { await navigator.clipboard.writeText(referralLink); setNotice("Invitation link copied."); })}>Copy invitation</button></> : <p className="mt-auto text-sm text-marble/65">Your personal link appears after you join.</p>}</QuestCard>
+          <QuestCard number="06" title={checkedIn ? "Return tomorrow" : "Keep a daily watch"} reward="+10 points / day" done={checkedIn}><p>A daily visit. A growing streak.</p><button className={`${buttonClass} mt-auto self-start`} onClick={checkin} disabled={!profile || busy || checkedIn}>{checkedIn ? "Completed today" : "Daily check-in"}</button></QuestCard>
+          <QuestCard number="07" title="Check a wallet" reward="+5 points / unique check"><p>Check up to five unique wallets a day.</p><form className="mt-auto space-y-3" onSubmit={(event) => { event.preventDefault(); checkTarget(); }}><label className="sr-only" htmlFor="target">Wallet to check</label><input id="target" className={inputClass} value={target} onChange={(event) => setTarget(event.target.value)} placeholder="Solana wallet address" /><button className={buttonClass} disabled={!profile || busy}>Check wallet</button></form></QuestCard>
+
         </div>
       </section>
       {risk && <section aria-labelledby="result-title" className="mt-12 border-2 border-gold bg-navy p-6"><h2 id="result-title" className="text-3xl">Wallet check</h2><p className="mt-2 break-all font-plain text-sm">{risk.address}</p><p className="mt-4 font-caps text-xl">{risk.flagged ? "Ladon found a warning" : risk.confidence === "none" ? "No clear evidence yet" : "No strong warning found"}</p><p className="mt-2 font-plain text-base">Risk: {Math.round(risk.risk * 100)}% · Confidence: {risk.confidence}. A score is a probability, not an accusation.</p><ul className="mt-3 list-inside list-disc font-plain text-base">{risk.reasons.map((reason) => <li key={reason.code}>{reason.text}</li>)}</ul></section>}
       <section aria-labelledby="leaders-title" className="mt-14"><h2 id="leaders-title" className="text-4xl">The first watch</h2><p className="mt-2 font-plain text-base text-marble/75">Top 20 contributors by Ladon Points.</p><ol className="mt-5 border-t border-marble/30">{leaders.map((leader) => <li key={leader.rank} className="flex items-center justify-between border-b border-marble/30 py-3 font-plain"><span><span className="mr-4 text-gold">#{leader.rank}</span>{shortAddress(leader.wallet)}</span><span>{leader.points} pts</span></li>)}</ol>{leaders.length === 0 && <p className="mt-4 font-plain text-sm text-marble/65">{leaderError ? "The leaderboard is unavailable right now." : "The first places are waiting to be filled."}</p>}</section>
-      <footer className="mt-16 border-t border-gold/50 pt-6 font-plain text-sm text-marble/65"><p>Ladon Points are participation points only. They are not tokens, have no cash value, and do not guarantee a future token allocation.</p><Link href="/privacy" className="mt-3 inline-block underline underline-offset-4">Privacy</Link></footer>
+      <footer className="mt-16 border-t border-gold/50 pt-6 font-plain text-sm text-marble/65"><p>Season 1 participation points. No token allocation guaranteed.</p><Link href="/privacy" className="mt-3 inline-block underline underline-offset-4">Privacy</Link></footer>
     </div>
   </main>;
 }
