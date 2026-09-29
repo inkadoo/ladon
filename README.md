@@ -69,6 +69,20 @@ cd web && npm install && npm run dev
 
 Tests: `.venv/bin/python -m pytest` in `engine`, `npm test` in `extension`.
 
+## Season 1 Ladon Points
+
+The points page is at `/airdrop`. It records participation in Postgres; it does not create a token or guarantee an allocation.
+
+To deploy it:
+
+1. Set `DATABASE_URL` for the engine. Its startup migration creates the `airdrop_profiles`, `airdrop_events`, and `airdrop_referrals` tables.
+2. Set `ALLOWED_ORIGINS` on the engine to include `https://getladon.vercel.app` (and any other site origin that will call it).
+3. Set `NEXT_PUBLIC_LADON_API_URL` in Vercel to the public HTTPS base URL of the engine, then redeploy the website.
+
+The API provides `GET /v1/airdrop/profile/{wallet}`, `POST /v1/airdrop/join`, `POST /v1/airdrop/checkin`, `POST /v1/airdrop/wallet-check`, and `GET /v1/airdrop/leaderboard`. Awards are +50 for joining once, +10 for one daily UTC check-in, +5 for up to five unique successful wallet checks per UTC day, and +100/+25 for inviter/invitee on a new referred join. The schema reserves `verified_report` events (+250) for a future private verification workflow; report submission awards no points.
+
+Season 1 currently uses public wallet address entry. It **does not verify ownership**; someone who knows another wallet address can act under it. Treat this as a participation ledger, not as proof of entitlement. Add signed-message ownership verification before attaching financial value to points or using them for any allocation. The write rate limit is currently per API process; use a shared edge rate limit if the engine runs across multiple instances.
+
 ## Open API
 
 The scam graph is public, so any wallet, exchange or trading tool can plug in.

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { Wordmark } from "./Wordmark";
 import { SolanaMark } from "./SolanaMark";
@@ -157,10 +158,11 @@ export function LadonHero() {
       />
 
       <div className="relative flex h-svh flex-col px-5 sm:px-10 lg:px-16">
-        <nav aria-label="Main" className="flex items-center justify-end gap-6 pt-6 font-caps text-lg sm:gap-10">
+        <nav aria-label="Main" className="flex flex-wrap items-center justify-end gap-x-6 gap-y-2 pt-6 font-caps text-base sm:gap-x-10 sm:text-lg">
           <a href="#how" className="rounded-sm hover:text-gold">How it works</a>
           <a href="#warning" className="rounded-sm hover:text-gold">The warning</a>
           <a href="#api" className="hidden rounded-sm hover:text-gold sm:inline">API</a>
+          <Link href="/airdrop" className="rounded-sm hover:text-gold">Airdrop</Link>
           <a href={GITHUB_URL} className="rounded-sm hover:text-gold">GitHub</a>
         </nav>
 

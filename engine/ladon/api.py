@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from .addresses import InvalidAddress, parse_address, parse_signature
+from .airdrop import Airdrop, AirdropError
 from .config import Settings, load_settings
 from .db import Database
 from .engine import Engine
@@ -25,6 +26,19 @@ class ReportIn(BaseModel):
     address: str
     description: str = Field(default="", max_length=MAX_DESCRIPTION * 2)
     signature: str = Field(default="", max_length=100)
+
+
+class AirdropJoinIn(BaseModel):
+    wallet: str
+    referral_code: str | None = Field(default=None, max_length=32)
+
+
+class AirdropWalletIn(BaseModel):
+    wallet: str
+
+
+class AirdropCheckIn(AirdropWalletIn):
+    target: str
 
 
 def score_json(score: Score, token_account: str | None = None) -> dict:
@@ -57,6 +71,7 @@ def create_app(
     phishing = phishing or PhishingList()
     lookups = RateLimiter(limit=20, window_seconds=60)
     limiter = RateLimiter()
+    airdrop_limiter = RateLimiter(limit=30, window_seconds=600)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -90,6 +105,61 @@ def create_app(
             return parse_address(address)
         except InvalidAddress:
             raise HTTPException(status_code=400, detail="That is not a valid Solana address.") from None
+
+    def airdrop_db() -> Airdrop:
+        if engine.db is None:
+            raise HTTPException(status_code=503, detail="Season 1 is unavailable until database storage is configured.")
+        return Airdrop(engine.db.pool)
+
+    def rate_limit_airdrop(request: Request) -> None:
+        key = reporter_key(request.client.host if request.client else "unknown", settings.reporter_salt)
+        if not airdrop_limiter.allow(key):
+            raise HTTPException(status_code=429, detail="Too many Season 1 requests. Please wait and try again.")
+
+    @app.get("/v1/airdrop/profile/{wallet}")
+    async def airdrop_profile(wallet: str) -> dict:
+        result = await airdrop_db().profile(valid(wallet))
+        if result is None:
+            raise HTTPException(status_code=404, detail="This wallet has not joined Season 1.")
+        return result
+
+    @app.post("/v1/airdrop/join")
+    async def airdrop_join(body: AirdropJoinIn, request: Request) -> dict:
+        wallet = valid(body.wallet)
+        rate_limit_airdrop(request)
+        try:
+            joined = await airdrop_db().join(wallet, body.referral_code)
+        except AirdropError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from None
+        return {"joined": joined, "profile": await airdrop_db().profile(wallet)}
+
+    @app.post("/v1/airdrop/checkin")
+    async def airdrop_checkin(body: AirdropWalletIn, request: Request) -> dict:
+        wallet = valid(body.wallet)
+        rate_limit_airdrop(request)
+        try:
+            awarded = await airdrop_db().checkin(wallet)
+        except AirdropError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from None
+        return {"awarded": awarded, "profile": await airdrop_db().profile(wallet)}
+
+    @app.post("/v1/airdrop/wallet-check")
+    async def airdrop_wallet_check(body: AirdropCheckIn, request: Request) -> dict:
+        wallet, target = valid(body.wallet), valid(body.target)
+        rate_limit_airdrop(request)
+        # Confirm membership before the potentially expensive lookup.
+        if await airdrop_db().profile(wallet) is None:
+            raise HTTPException(status_code=400, detail="Join Season 1 first.")
+        risk = await lookup(target, request)
+        try:
+            awarded = await airdrop_db().wallet_check(wallet, target)
+        except AirdropError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from None
+        return {"result": risk, "awarded": awarded, "profile": await airdrop_db().profile(wallet)}
+
+    @app.get("/v1/airdrop/leaderboard")
+    async def airdrop_leaderboard() -> dict:
+        return {"leaders": await airdrop_db().leaderboard()}
 
     @app.get("/health")
     def health() -> dict:
