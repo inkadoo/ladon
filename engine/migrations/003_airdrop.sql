@@ -5,7 +5,6 @@ create table if not exists airdrop_profiles (
     last_checkin date,
     created_at timestamptz not null default now()
 );
-
 create table if not exists airdrop_events (
     id bigint generated always as identity primary key,
     wallet text not null references airdrop_profiles(wallet),
@@ -17,6 +16,7 @@ create table if not exists airdrop_events (
 );
 create index if not exists airdrop_events_wallet on airdrop_events (wallet);
 create index if not exists airdrop_events_daily on airdrop_events (wallet, kind, created_at);
+create index if not exists airdrop_events_created on airdrop_events (created_at);
 
 create table if not exists airdrop_referrals (
     invitee text primary key references airdrop_profiles(wallet),
