@@ -1,0 +1,11 @@
+# The website project deploys from the repository root to include /shared.
+# Keep the engine, extension, local notes, and local secrets out of that bundle.
+engine/
+extension/
+docs/
+scripts/
+CRITERIA.md
+.remember/
+**/.env
+**/.env.*
+!**/.env.example
