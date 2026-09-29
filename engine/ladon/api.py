@@ -7,6 +7,8 @@ from pydantic import BaseModel, Field
 
 from .addresses import InvalidAddress, parse_address, parse_signature
 from .airdrop import Airdrop, AirdropError
+from .airdrop_auth import AirdropAuth
+from .airdrop_router import identity_router
 from .config import Settings, load_settings
 from .db import Database
 from .engine import Engine
@@ -90,8 +92,16 @@ def create_app(
             await tokens.dex.close()
 
     app = FastAPI(title="Ladon", version="0.1.0", lifespan=lifespan)
+
+    @app.middleware("http")
+    async def private_airdrop_responses(request: Request, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith("/v1/airdrop/"):
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
     app.include_router(token_router(tokens, settings.reporter_salt))
-    app.add_middleware(CORSMiddleware, allow_origins=list(settings.allowed_origins), allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
+    app.add_middleware(CORSMiddleware, allow_origins=list(settings.allowed_origins), allow_methods=["GET", "POST"], allow_headers=["Content-Type", "Authorization"])
 
     def parse_owner(owner: str) -> bool:
         try:
@@ -116,6 +126,13 @@ def create_app(
         if not airdrop_limiter.allow(key):
             raise HTTPException(status_code=429, detail="Too many Season 1 requests. Please wait and try again.")
 
+    app.include_router(identity_router(lambda: airdrop_db().pool, settings))
+
+    async def require_airdrop_wallet(wallet: str, request: Request) -> None:
+        auth = AirdropAuth(airdrop_db().pool)
+        await auth.require_wallet(wallet, request)
+        await auth.limit("rewards:" + wallet)
+
     @app.get("/v1/airdrop/profile/{wallet}")
     async def airdrop_profile(wallet: str) -> dict:
         result = await airdrop_db().profile(valid(wallet))
@@ -127,6 +144,7 @@ def create_app(
     async def airdrop_join(body: AirdropJoinIn, request: Request) -> dict:
         wallet = valid(body.wallet)
         rate_limit_airdrop(request)
+        await require_airdrop_wallet(wallet, request)
         try:
             joined = await airdrop_db().join(wallet, body.referral_code)
         except AirdropError as exc:
@@ -137,6 +155,7 @@ def create_app(
     async def airdrop_checkin(body: AirdropWalletIn, request: Request) -> dict:
         wallet = valid(body.wallet)
         rate_limit_airdrop(request)
+        await require_airdrop_wallet(wallet, request)
         try:
             awarded = await airdrop_db().checkin(wallet)
         except AirdropError as exc:
@@ -147,6 +166,7 @@ def create_app(
     async def airdrop_wallet_check(body: AirdropCheckIn, request: Request) -> dict:
         wallet, target = valid(body.wallet), valid(body.target)
         rate_limit_airdrop(request)
+        await require_airdrop_wallet(wallet, request)
         # Confirm membership before the potentially expensive lookup.
         if await airdrop_db().profile(wallet) is None:
             raise HTTPException(status_code=400, detail="Join Season 1 first.")
