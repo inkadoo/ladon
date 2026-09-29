@@ -162,7 +162,7 @@ export function LadonHero() {
           <a href="#how" className="rounded-sm hover:text-gold">How it works</a>
           <a href="#warning" className="rounded-sm hover:text-gold">The warning</a>
           <a href="#api" className="hidden rounded-sm hover:text-gold sm:inline">API</a>
-          <Link href="/airdrop" className="rounded-sm hover:text-gold">Airdrop</Link>
+          <Link href="/airdrop" className="inline-flex items-center gap-2 border-2 border-gold bg-gold px-3 py-1 font-bold text-ink shadow-[3px_3px_0_var(--color-ink)] hover:bg-marble hover:border-marble"><span aria-hidden="true">✦</span>Airdrop</Link>
           <a href={GITHUB_URL} className="rounded-sm hover:text-gold">GitHub</a>
         </nav>
 

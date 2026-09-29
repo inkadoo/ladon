@@ -41,11 +41,20 @@ const SECTIONS: { title: string; body: string[] }[] = [
     ],
   },
   {
+    title: "Season 1 points and connected accounts",
+    body: [
+      "If you join Season 1, we store your public wallet address, points activity, daily check-ins and referral relationships. The leaderboard shows a shortened wallet address and points total.",
+      "Wallet sign-in asks you to sign a single-use message proving ownership. This does not authorize transactions or access to funds. The sign-in session expires after 12 hours and is kept in your browser's session storage; the server stores only a hash of the session credential.",
+      "If you connect X, Ladon requests read access to your profile, follows and posts to verify rewards. We store your X account ID, username, encrypted temporary access credential and completed quest proofs. Ladon does not publish or follow accounts for you, and it does not request your direct messages or email address.",
+      "You can remove X access from the airdrop page or revoke the app in X settings. Removing access deletes the stored credential. We retain the Season 1 account binding and completed reward records to prevent duplicate rewards. X usernames are not shown on the public leaderboard.",
+    ],
+  },
+  {
     title: "Who else is involved",
     body: [
       "Helius provides the Solana data Ladon uses. When an address is checked, the Ladon API asks Helius about that address, never about you.",
       "Vercel hosts the website and the API, and keeps standard server logs, including IP addresses, for a short time.",
-      "Supabase stores Ladon's database of reports and scores.",
+      "Supabase stores Ladon's database of reports, scores and Season 1 participation records. X provides account and post information when you choose to connect it for quests.",
       "We never sell or share data for advertising.",
     ],
   },
@@ -65,7 +74,7 @@ export default function Privacy() {
           Ladon
         </Link>
         <h1 className="mt-8 font-serif text-4xl leading-tight sm:text-5xl">Privacy</h1>
-        <p className="mt-3 text-sm text-marble/70">Last updated 27 September 2026</p>
+        <p className="mt-3 text-sm text-marble/70">Last updated 29 September 2026</p>
 
         {SECTIONS.map((section) => (
           <section key={section.title} className="mt-10">
